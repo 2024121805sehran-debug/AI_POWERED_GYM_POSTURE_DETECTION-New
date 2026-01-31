@@ -1,4 +1,4 @@
-\# 🏋️ AI Powered Gym Posture Detection
+🏋️ AI Powered Gym Posture Detection
 
 
 
@@ -10,13 +10,13 @@ AI-powered real-time gym posture detection system that uses computer vision to d
 
 
 
-\## 🚀 Features
+🚀 Features
 
-\- Live pose detection with \*\*MediaPipe Pose\*\* (33 landmarks)
+- Live pose detection with \*\*MediaPipe Pose\*\* (33 landmarks)
 
-\- Real-time posture status: ✅ Correct / ❌ Wrong
+- Real-time posture status: ✅ Correct / ❌ Wrong
 
-\- Auto exercise detection:
+- Auto exercise detection:
 
 &nbsp; - Squat
 
@@ -26,17 +26,17 @@ AI-powered real-time gym posture detection system that uses computer vision to d
 
 &nbsp; - Shoulder Press
 
-\- Live skeleton camera stream inside the frontend
+- Live skeleton camera stream inside the frontend
 
-\- Injury risk warnings (rule-based)
+- Injury risk warnings (rule-based)
 
-\- Firebase Firestore integration:
+- Firebase Firestore integration:
 
 &nbsp; - `postureLogs/latest` for live state
 
 &nbsp; - `postureHistory` for wrong-posture logs with timestamps
 
-\- React dashboard with Start/Stop AI Detection
+- React dashboard with Start/Stop AI Detection
 
 
 
@@ -44,13 +44,13 @@ AI-powered real-time gym posture detection system that uses computer vision to d
 
 
 
-\## 🧠 Tech Stack
+🧠 Tech Stack
 
-\*\*Backend:\*\* Python, OpenCV, MediaPipe, FastAPI, Firebase Admin SDK  
+Backend: Python, OpenCV, MediaPipe, FastAPI, Firebase Admin SDK  
 
-\*\*Frontend:\*\* React.js  
+Frontend: React.js  
 
-\*\*Cloud:\*\* Firebase Firestore (Google Cloud)
+Cloud: Firebase Firestore (Google Cloud)
 
 
 
@@ -58,53 +58,42 @@ AI-powered real-time gym posture detection system that uses computer vision to d
 
 
 
-\## 🏗️ Project Structure
+🏗️ Project Structure
 
-AI\_POWERED\_GYM\_POSTURE\_DETECTION-New/
+AI_POWERED_GYM_POSTURE_DETECTION-New
 
-backend/ # FastAPI + MediaPipe + Firebase
+backend FastAPI + MediaPipe + Firebase
 
-frontend/ # React dashboard
+frontend React dashboard
 
 README.md
 
-
-
-
-
 ---
+▶️ How to Run (Local)
+1) Backend Setup
 
+1. Open terminal inside `backend/`
 
-
-\## ▶️ How to Run (Local)
-
-
-
-\### 1) Backend Setup
-
-1\. Open terminal inside `backend/`
-
-2\. Create and activate venv:
+2. Create and activate venv:
 
 &nbsp;  - `python -m venv venv`
 
 &nbsp;  - `venv\\\\Scripts\\\\activate`
 
-3\. Install dependencies:
+3. Install dependencies:
 
 &nbsp;  - `pip install mediapipe==0.10.9 opencv-python numpy firebase-admin fastapi uvicorn`
 
-4\. Add Firebase service key:
+4. Add Firebase service key:
 
 &nbsp;  - Place `serviceAccountKey.json` inside `backend/`
 
-5\. Run backend:
+5. Run backend:
 
 &nbsp;  - `uvicorn control\_server:app --host 0.0.0.0 --port 8000`
 
 
-
-\### 2) Frontend Setup
+2) Frontend Setup
 
 1\. Open terminal inside `frontend/`
 
@@ -113,12 +102,7 @@ README.md
 &nbsp;  - `npm install`
 
 &nbsp;  - `npm start`
-
-
-
 ---
-
-
 
 \## 🎥 Demo Flow (for judges)
 
@@ -126,7 +110,7 @@ README.md
 
 2\. Start frontend
 
-3\. Open dashboard → click \*\*Start AI Detection\*\*
+3\. Open dashboard → click Start AI Detection
 
 4\. Perform an exercise:
 
@@ -134,33 +118,26 @@ README.md
 
 &nbsp;  - Wrong posture → red + issue
 
-5\. Click \*\*Stop AI Detection\*\*
+5. Click Stop AI Detection
 
-6\. Check Firebase Firestore logs for history proof
-
-
+6. Check Firebase Firestore logs for history proof
 
 ---
 
+☁️ Firebase Data
 
+- Live state: `postureLogs/latest`
 
-\## ☁️ Firebase Data
-
-\- Live state: `postureLogs/latest`
-
-\- Logs: `postureHistory` (timestamped)
-
-
+- Logs: `postureHistory` (timestamped)
 
 ---
 
+👥 Team
 
+- AI / CV: MediaPipe + posture logic  
 
-\## 👥 Team
+- Backend: FastAPI + Firebase  
 
-\- AI / CV: MediaPipe + posture logic  
+- Frontend: React dashboard
 
-\- Backend: FastAPI + Firebase  
-
-\- Frontend: React dashboard
 
