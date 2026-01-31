@@ -1,6 +1,6 @@
-flask
-flask-cors
-gunicorn
+fastapi
+uvicorn
+python-multipart
+numpy
 opencv-python-headless
 mediapipe
-numpy
