@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+serviceAccountKey.json
+STOP_BACKEND.txt
+*.log
+.DS_Store
