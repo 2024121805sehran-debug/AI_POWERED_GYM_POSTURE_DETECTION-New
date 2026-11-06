@@ -1,0 +1,2375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Gym Posture Detection</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+      min-height: 100vh;
+      color: #f8fafc;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .status-correct {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+    }
+    .status-wrong {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+      animation: pulse-red 1.5s infinite;
+    }
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+      50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.6); }
+    }
+    .exercise-badge {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    }
+    .rep-counter {
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(14, 165, 233, 0.3); }
+    .btn-success {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      transition: all 0.3s ease;
+    }
+    .btn-success:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3); }
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      transition: all 0.3s ease;
+    }
+    .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3); }
+    .stat-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.3s ease;
+    }
+    .stat-card:hover { border-color: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
+    .feedback-panel {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .tips-panel {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    .video-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      background: #0f172a;
+    }
+    .video-container img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    .history-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    .history-table th {
+      background: rgba(15, 23, 42, 0.8);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .history-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .history-table tr:hover td { background: rgba(255, 255, 255, 0.02); }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-6">
+  <!-- Header -->
+  <header class="glass-card rounded-2xl p-6 mb-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <i class="fas fa-dumbbell text-sky-400 text-2xl"></i>
+          <h1 class="text-2xl md:text-3xl font-bold text-white">AI Gym Posture Assistant</h1>
+        </div>
+        <p class="text-slate-400">Real-time posture detection &amp; injury prevention using computer vision</p>
+        <div id="userGreeting" class="hidden mt-2 flex items-center gap-2 flex-wrap">
+          <i class="fas fa-user-circle text-sky-400"></i>
+          <span class="text-sky-400 font-semibold" id="greetName"></span>
+          <span class="text-slate-500 text-xs">•</span>
+          <span class="text-slate-400 text-sm" id="greetBmi"></span>
+          <span class="text-slate-500 text-xs">•</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-pink-500/20 text-pink-400" id="greetGoal"></span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-violet-500/20 text-violet-400" id="greetLevel"></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <button id="wsStatus" onclick="toggleLive()" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all cursor-pointer">
+          <i class="fas fa-wifi"></i> <span>Offline</span>
+        </button>
+        <div id="backendStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-slate-500/20 text-slate-400">
+          <i class="fas fa-circle"></i> <span>AI Idle</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Control Buttons -->
+    <div class="flex flex-wrap items-center gap-3 mt-6">
+      <button id="btnStart" onclick="startBackend()" class="btn-success flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white">
+        <i class="fas fa-play"></i> Start AI Detection
+      </button>
+      <button id="btnStop" onclick="stopBackend()" class="btn-danger flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white opacity-50 cursor-not-allowed" disabled>
+        <i class="fas fa-stop"></i> Stop Detection
+      </button>
+      <button id="btnReset" onclick="resetCounters()" class="flex items-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-slate-600 hover:bg-slate-500 transition-all opacity-50 cursor-not-allowed" disabled>
+        <i class="fas fa-redo"></i> Reset
+      </button>
+      <button onclick="toggleHistory()" class="flex items-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-violet-600 hover:bg-violet-500 transition-all">
+        <i class="fas fa-history"></i> <span id="historyBtnText">View History</span>
+      </button>
+    </div>
+    <p id="backendMsg" class="mt-3 text-sky-300 text-sm hidden"></p>
+  </header>
+
+  <!-- Main Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Video Stream -->
+    <div class="lg:col-span-2 space-y-6">
+      <div id="cameraSection" class="glass-card rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-video text-sky-400"></i>
+            <h2 class="text-lg font-semibold text-white">Live AI Camera</h2>
+          </div>
+          <div class="flex items-center gap-4">
+            <div id="liveRepStats" class="hidden flex items-center gap-3 bg-slate-800/80 px-3 py-1.5 rounded-lg">
+              <span class="text-xs text-slate-400">Reps:</span>
+              <span id="headerTotalReps" class="text-lg font-bold text-white">0</span>
+              <span class="text-xs text-emerald-400">✓<span id="headerCorrect">0</span></span>
+              <span class="text-xs text-red-400">✗<span id="headerWrong">0</span></span>
+            </div>
+            <div id="timerDisplay" class="hidden flex items-center gap-2 text-sm text-slate-400">
+              <i class="fas fa-clock"></i> <span id="elapsedTime">00:00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="video-container aspect-video bg-slate-900 rounded-xl overflow-hidden relative">
+          <div id="videoPlaceholder" class="w-full h-full flex flex-col items-center justify-center text-slate-500">
+            <i class="fas fa-video text-6xl mb-4 opacity-50"></i>
+            <p class="text-lg">Click "Start AI Detection" to begin</p>
+            <p class="text-sm mt-2 opacity-70">Ensure your camera is connected and visible</p>
+          </div>
+          <img id="videoStream" class="hidden w-full h-full object-cover" alt="AI Camera Stream">
+          
+          <!-- Video Overlays -->
+          <div id="videoOverlays" class="hidden absolute inset-0 pointer-events-none">
+            <div class="absolute top-4 left-4 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+              <span class="text-xs text-slate-400">Exercise</span>
+              <p id="overlayExercise" class="text-sm font-semibold text-sky-400">Waiting...</p>
+            </div>
+            <div id="overlayStatus" class="absolute top-4 right-4 px-3 py-1.5 rounded-lg font-semibold text-sm bg-emerald-500/80 text-white">
+              CORRECT
+            </div>
+            <div id="repProgressBar" class="hidden absolute bottom-4 left-4 right-4">
+              <div class="bg-black/60 backdrop-blur-sm rounded-lg p-3">
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                  <span>Rep Quality</span>
+                  <span id="accuracyText">0% accuracy</span>
+                </div>
+                <div class="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                  <div class="flex h-full rounded-full overflow-hidden">
+                    <div id="goodBar" class="bg-emerald-500 h-full transition-all duration-300" style="width: 0%"></div>
+                    <div id="badBar" class="bg-red-500 h-full transition-all duration-300" style="width: 0%"></div>
+                  </div>
+                </div>
+                <div class="flex justify-between text-xs mt-1">
+                  <span class="text-emerald-400"><span id="bottomGood">0</span> good</span>
+                  <span class="text-red-400"><span id="bottomBad">0</span> bad</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Plan Schedule Widget (shown after plan is applied) -->
+      <div id="planScheduleWidget" class="hidden glass-card rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fas fa-calendar-check text-pink-400"></i> Today's Schedule</h3>
+          <div class="flex items-center gap-2">
+            <span id="scheduleDay" class="text-xs text-slate-400"></span>
+            <button onclick="document.getElementById('planScheduleWidget').classList.add('hidden')" class="text-slate-500 hover:text-white text-xs"><i class="fas fa-times"></i></button>
+          </div>
+        </div>
+        <div id="scheduleExerciseList" class="flex gap-2 overflow-x-auto pb-1"></div>
+        <p id="scheduleHealthTip" class="text-xs text-yellow-300 mt-3 p-2 bg-yellow-500/10 rounded-lg"></p>
+      </div>
+
+      <!-- Live Feedback - Simple & User-Friendly -->
+      <div class="glass-card rounded-2xl p-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <i class="fas fa-comment-dots text-sky-400"></i> Live Feedback
+        </h3>
+        
+        <!-- Main Feedback Message -->
+        <div id="simpleFeedback" class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+          <div class="flex items-center gap-3 mb-2">
+            <i id="feedbackIcon" class="fas fa-check-circle text-emerald-400 text-xl"></i>
+            <span id="feedbackTitle" class="font-semibold text-emerald-400">Ready to Start</span>
+          </div>
+          <p id="feedbackMessage" class="text-slate-300 text-sm">Click "Start AI Detection" and begin your workout. I'll watch your form and give you simple tips!</p>
+        </div>
+
+        <!-- Quick Tips -->
+        <div class="mt-4 p-3 bg-white/5 rounded-xl">
+          <h4 class="text-sm font-medium text-white mb-2 flex items-center gap-2">
+            <i class="fas fa-lightbulb text-yellow-400"></i> Quick Tips
+          </h4>
+          <ul class="space-y-1 text-xs text-slate-400" id="quickTipsList">
+            <li class="flex items-start gap-2">
+              <span class="text-sky-400">1.</span> Stand where your full body is visible
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-sky-400">2.</span> Wear fitted clothes for best detection
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-sky-400">3.</span> Keep a steady pace for accurate counting
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Panel -->
+    <div class="space-y-6">
+      <!-- Main Status Card -->
+      <div id="mainStatusCard" class="rounded-2xl p-6 text-center status-correct transition-all duration-300">
+        <h2 id="mainStatusText" class="text-2xl font-bold text-white mb-2">✓ CORRECT POSTURE</h2>
+        <p id="mainStatusSub" class="text-white/90 text-sm">Keep it up! Your form looks good.</p>
+      </div>
+
+      <!-- Exercise Selector -->
+      <div class="glass-card rounded-2xl p-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <i class="fas fa-dumbbell text-sky-400"></i> Select Exercise
+        </h3>
+        <select id="exerciseSelect" onchange="showExerciseDetails()" class="w-full bg-slate-700 text-white rounded-lg px-4 py-3 border border-slate-600 focus:border-sky-500 focus:outline-none mb-4">
+          <option value="squat">Squat</option>
+          <option value="pushup">Push-up</option>
+          <option value="lunge">Lunge</option>
+          <option value="plank">Plank</option>
+          <option value="jumping_jack">Jumping Jack</option>
+        </select>
+        
+        <!-- Exercise Details -->
+        <div id="exerciseDetails" class="p-4 bg-white/5 rounded-xl">
+          <div class="flex items-center gap-3 mb-3">
+            <div id="exerciseIcon" class="w-10 h-10 rounded-full bg-sky-500/20 flex items-center justify-center">
+              <i class="fas fa-walking text-sky-400"></i>
+            </div>
+            <div>
+              <h4 id="exerciseName" class="font-semibold text-white">Squat</h4>
+              <span id="exerciseDifficulty" class="text-xs text-emerald-400">Beginner Friendly</span>
+            </div>
+          </div>
+          <p id="exerciseDescription" class="text-sm text-slate-300 mb-3">A lower body exercise that targets thighs, hips, and buttocks.</p>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="bg-slate-700/50 rounded p-2">
+              <span class="text-slate-400">Target</span>
+              <p id="exerciseTarget" class="text-sky-400 font-medium">Legs, Glutes</p>
+            </div>
+            <div class="bg-slate-700/50 rounded p-2">
+              <span class="text-slate-400">Calories</span>
+              <p id="exerciseCalories" class="text-orange-400 font-medium">~8 per min</p>
+            </div>
+          </div>
+          <div class="mt-3 p-2 bg-emerald-500/10 rounded border border-emerald-500/30">
+            <p id="exerciseTip" class="text-xs text-emerald-400"><i class="fas fa-lightbulb mr-1"></i> Keep your back straight and don't let knees go past toes</p>
+          </div>
+          
+          <!-- Animation Toggle Button -->
+          <button onclick="toggleExerciseAnimation()" class="w-full mt-4 bg-slate-700 hover:bg-sky-600 text-white py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2">
+            <i class="fas fa-play-circle text-sky-400"></i>
+            <span id="animationToggleText">Show Animation Demo</span>
+          </button>
+          
+          <!-- GIF Animation Container (Hidden by default) -->
+          <div id="exerciseAnimationContainer" class="hidden mt-4 rounded-xl overflow-hidden bg-slate-800/50 p-4">
+            <img id="exerciseGif" src="" alt="Exercise Demo" class="w-full h-48 object-contain rounded-lg">
+          </div>
+        </div>
+      </div>
+
+      <!-- Rep Counter -->
+      <div class="glass-card rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-sm text-slate-400">Repetitions</p>
+          <i class="fas fa-chart-line text-violet-400"></i>
+        </div>
+        <div class="rep-counter text-white text-center mb-4 py-3 rounded-xl text-3xl font-bold">
+          <span id="totalReps">0</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="stat-card text-center p-4 rounded-xl">
+            <p id="correctReps" class="text-2xl font-bold text-emerald-400">0</p>
+            <p class="text-xs text-slate-400">Correct</p>
+          </div>
+          <div class="stat-card text-center p-4 rounded-xl">
+            <p id="wrongReps" class="text-2xl font-bold text-red-400">0</p>
+            <p class="text-xs text-slate-400">Wrong</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Features Panel -->
+      <div class="glass-card rounded-2xl p-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <i class="fas fa-brain text-pink-400"></i> AI Features
+        </h3>
+        
+        <!-- Voice Coach Toggle -->
+        <div class="flex items-center justify-between mb-4 p-3 bg-white/5 rounded-xl">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-volume-up text-sky-400"></i>
+            <span class="text-sm text-white">AI Voice Coach</span>
+          </div>
+          <button id="voiceToggle" onclick="toggleVoiceCoach()" class="px-3 py-1.5 rounded-full text-sm font-medium bg-slate-600 text-white hover:bg-sky-500 transition-colors">
+            OFF
+          </button>
+        </div>
+        
+        <!-- Injury Risk Meter -->
+        <div class="mb-4 p-3 bg-white/5 rounded-xl">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm text-slate-300 flex items-center gap-2">
+              <i class="fas fa-shield-alt text-orange-400"></i> Injury Risk
+            </span>
+            <span id="riskLevel" class="text-sm font-semibold text-emerald-400">Low</span>
+          </div>
+          <div class="w-full bg-slate-700 rounded-full h-2">
+            <div id="riskBar" class="bg-emerald-500 h-2 rounded-full transition-all duration-300" style="width: 15%"></div>
+          </div>
+          <p id="riskRecommendation" class="text-xs text-slate-400 mt-2">Good form consistency</p>
+        </div>
+        
+        <!-- Fatigue Detection -->
+        <div class="mb-4 p-3 bg-white/5 rounded-xl">
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-300 flex items-center gap-2">
+              <i class="fas fa-battery-half text-yellow-400"></i> Fatigue Level
+            </span>
+            <span id="fatigueLevel" class="text-sm font-semibold text-emerald-400">Low</span>
+          </div>
+        </div>
+        
+        <!-- Range of Motion -->
+        <div id="romPanel" class="hidden mb-4 p-3 bg-white/5 rounded-xl">
+          <h4 class="text-sm font-medium text-white mb-2 flex items-center gap-2">
+            <i class="fas fa-arrows-alt text-violet-400"></i> Range of Motion
+          </h4>
+          <div id="romGrid" class="grid grid-cols-2 gap-2 text-xs"></div>
+        </div>
+        
+        <!-- BMI Calculator (Inline) -->
+        <div class="mb-4 p-3 bg-gradient-to-br from-sky-900/40 to-violet-900/40 rounded-xl border border-sky-500/20">
+          <h4 class="text-sm font-medium text-white mb-3 flex items-center gap-2">
+            <i class="fas fa-weight text-sky-400"></i> BMI Calculator
+          </h4>
+          <div class="flex gap-2 mb-2">
+            <div class="flex-1">
+              <label class="text-xs text-slate-400 block mb-1">Height (cm)</label>
+              <input type="number" id="bmiHeight" placeholder="175" class="w-full bg-slate-800 text-white text-sm rounded-lg px-3 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none">
+            </div>
+            <div class="flex-1">
+              <label class="text-xs text-slate-400 block mb-1">Weight (kg)</label>
+              <input type="number" id="bmiWeight" placeholder="70" class="w-full bg-slate-800 text-white text-sm rounded-lg px-3 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none">
+            </div>
+          </div>
+          <button onclick="calculateBMI()" class="w-full bg-gradient-to-r from-sky-500 to-violet-500 hover:from-sky-600 hover:to-violet-600 text-white py-2 rounded-lg text-sm font-medium transition-all mb-2">
+            <i class="fas fa-calculator mr-1"></i> Calculate BMI
+          </button>
+          <div id="bmiResult" class="hidden mt-2 p-2 bg-slate-800/80 rounded-lg">
+            <div class="flex justify-between items-center">
+              <div>
+                <span class="text-xs text-slate-400">Your BMI</span>
+                <p id="bmiScore" class="text-xl font-bold text-sky-400">--</p>
+              </div>
+              <div class="text-right">
+                <span class="text-xs text-slate-400">Category</span>
+                <p id="bmiCategory" class="text-sm font-bold text-emerald-400">--</p>
+              </div>
+            </div>
+            <div class="mt-2 w-full bg-slate-700 rounded-full h-1.5">
+              <div id="bmiBar" class="h-1.5 rounded-full transition-all duration-500 bg-emerald-500" style="width: 0%"></div>
+            </div>
+            <p id="bmiTip" class="text-xs text-slate-400 mt-1.5"></p>
+          </div>
+        </div>
+
+        <!-- AI Workout Plan Builder -->
+        <div class="p-3 bg-white/5 rounded-xl">
+          <h4 class="text-sm font-medium text-white mb-2 flex items-center gap-2">
+            <i class="fas fa-dumbbell text-pink-400"></i> AI Workout Plan
+          </h4>
+          <button onclick="openPlanWizard()" class="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2">
+            <i class="fas fa-magic"></i> Build My Personalized Plan
+          </button>
+          <div id="workoutPlanResult" class="hidden mt-3 p-3 bg-slate-800/50 rounded-lg text-sm"></div>
+        </div>
+      </div>
+      <!-- Stats -->
+      <div class="glass-card rounded-2xl p-6">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <i class="fas fa-chart-bar text-sky-400"></i> Session Stats
+        </h3>
+        <div class="space-y-3">
+          <div class="stat-card p-4 rounded-xl">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Accuracy</span>
+              <span id="accuracy" class="text-xl font-bold text-sky-400">0%</span>
+            </div>
+            <div class="w-full bg-slate-700 rounded-full h-2 mt-2">
+              <div id="accuracyBar" class="bg-sky-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+          <div class="stat-card p-4 rounded-xl">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400 flex items-center gap-2">
+                <i class="fas fa-fire text-orange-400"></i> Injury Alerts
+              </span>
+              <span id="injuryAlerts" class="text-xl font-bold text-orange-400">0</span>
+            </div>
+          </div>
+          <div class="stat-card p-4 rounded-xl">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400 flex items-center gap-2">
+                <i class="fas fa-clock text-violet-400"></i> Duration
+              </span>
+              <span id="duration" class="text-xl font-bold text-violet-400">00:00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Section -->
+  <div id="historySection" class="hidden mt-6 glass-card rounded-2xl p-6 animate-fadeIn">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-xl font-semibold text-white flex items-center gap-2">
+        <i class="fas fa-history text-violet-400"></i> Workout History
+      </h2>
+      <button onclick="toggleHistory()" class="p-2 hover:bg-white/10 rounded-lg transition-colors">
+        <i class="fas fa-chevron-up text-slate-400"></i>
+      </button>
+    </div>
+
+    <div class="mb-6">
+      <h3 class="text-lg font-medium text-white mb-3">Past Sessions</h3>
+      <div id="sessionsTable" class="overflow-x-auto">
+        <p class="text-slate-500">No sessions recorded yet.</p>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="text-lg font-medium text-white mb-3">Recent Posture Issues</h3>
+      <div id="historyTable" class="overflow-x-auto">
+        <p class="text-slate-500">No posture issues recorded yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="mt-8 text-center text-slate-500 text-sm">
+    <p>AI Gym Posture Detection - Real-time Exercise Form Analysis</p>
+  </footer>
+
+  <!-- Auth Modal -->
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <div class="flex items-center justify-center gap-3 mb-4">
+          <i class="fas fa-dumbbell text-sky-400 text-3xl"></i>
+          <h1 class="text-2xl font-bold text-white">AI Gym Posture</h1>
+        </div>
+        <p class="text-slate-400 text-sm">Sign in to track your workouts</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex justify-center mb-6">
+        <div class="flex">
+          <button id="loginTab" class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+          <button id="signupTab" class="auth-tab" onclick="switchAuthTab('signup')">Sign Up</button>
+        </div>
+      </div>
+
+      <!-- Login Form -->
+      <div id="loginForm">
+        <div class="mb-4">
+          <input type="email" id="loginEmail" class="auth-input" placeholder="Email address" required>
+        </div>
+        <div class="mb-6">
+          <input type="password" id="loginPassword" class="auth-input" placeholder="Password" required>
+        </div>
+        <button onclick="login()" class="auth-btn auth-btn-primary mb-3">
+          <i class="fas fa-sign-in-alt mr-2"></i> Sign In
+        </button>
+        <button onclick="loginAsGuest()" class="auth-btn auth-btn-secondary">
+          <i class="fas fa-user-secret mr-2"></i> Continue as Guest
+        </button>
+      </div>
+
+      <!-- Signup Form -->
+      <div id="signupForm" class="hidden">
+        <div class="mb-4">
+          <input type="text" id="signupName" class="auth-input" placeholder="Full name" required>
+        </div>
+        <div class="mb-4">
+          <input type="email" id="signupEmail" class="auth-input" placeholder="Email address" required>
+        </div>
+        <div class="mb-4">
+          <input type="password" id="signupPassword" class="auth-input" placeholder="Password (min 6 chars)" required>
+        </div>
+        <div class="mb-6">
+          <input type="password" id="signupConfirm" class="auth-input" placeholder="Confirm password" required>
+        </div>
+        <button onclick="signup()" class="auth-btn auth-btn-primary">
+          <i class="fas fa-user-plus mr-2"></i> Create Account
+        </button>
+      </div>
+
+      <!-- Error Message -->
+      <div id="authError" class="hidden mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm text-center"></div>
+    </div>
+  </div>
+
+  <!-- User Menu (visible when logged in) -->
+  <div id="userMenuContainer" class="hidden fixed top-4 right-4 z-50">
+    <div class="relative">
+      <button onclick="toggleUserMenu()" class="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-700/80 hover:bg-slate-600 transition-all">
+        <i class="fas fa-user-circle text-sky-400"></i>
+        <span id="userDisplayName" class="text-white text-sm">User</span>
+        <i class="fas fa-chevron-down text-slate-400 text-xs"></i>
+      </button>
+      <div id="userMenu" class="user-menu hidden">
+        <div class="user-menu-item" onclick="logout()">
+          <i class="fas fa-sign-out-alt mr-2 text-slate-400"></i> Sign Out
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCBr7sDrXV9-qBRbywqoTKkRWX3tIDsOF0",
+      authDomain: "gym-posture-monitoring.firebaseapp.com",
+      projectId: "gym-posture-monitoring",
+      storageBucket: "gym-posture-monitoring.firebasestorage.app",
+      messagingSenderId: "1051844221099",
+      appId: "1:1051844221099:web:7801782b59865080507fee",
+      measurementId: "G-DY7JZN8HSG"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Global State - API uses relative URLs since frontend is served from same origin
+    const API = '';  // Empty string means same origin
+    let ws = null;
+    let wsConnected = false;
+    let backendRunning = false;
+    let sessionId = null;
+    let timerInterval = null;
+    let startTime = null;
+    let lastLoggedStatus = '';
+
+    let posture = {
+      exercise: 'Waiting...',
+      status: 'correct',
+      issue: 'Start AI detection to begin',
+      rep_count: 0,
+      angles: {},
+      feedback: []
+    };
+
+    let stats = {
+      totalReps: 0,
+      correctReps: 0,
+      wrongReps: 0,
+      injuryAlerts: 0
+    };
+
+    // WebSocket Connection - use same host with ws protocol
+    function connectWebSocket() {
+      if (ws?.readyState === WebSocket.OPEN) return;
+      
+      // Get current host for WebSocket (works with any host/port)
+      const host = window.location.host;
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${wsProtocol}//${host}/ws`);
+      
+      ws.onopen = () => {
+        wsConnected = true;
+        updateWsStatus(true);
+        ws.send(JSON.stringify({ action: 'ping' }));
+      };
+      
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'posture_update') {
+          const data = msg.data;
+          posture = {
+            exercise: data.exercise,
+            status: data.status,
+            issue: data.issue,
+            rep_count: data.rep_count,
+            angles: data.angles || {},
+            feedback: data.feedback || []
+          };
+          stats.totalReps = data.rep_count;
+          updateUI();
+          refreshBackendStatus();
+        }
+      };
+      
+      ws.onclose = () => {
+        wsConnected = false;
+        updateWsStatus(false);
+        setTimeout(connectWebSocket, 3000);
+      };
+      
+      ws.onerror = () => {
+        wsConnected = false;
+        updateWsStatus(false);
+      };
+    }
+
+    // Update WebSocket Status UI
+    function updateWsStatus(connected) {
+      const el = document.getElementById('wsStatus');
+      if (connected) {
+        el.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-emerald-500/20 text-emerald-400';
+        el.innerHTML = '<i class="fas fa-wifi"></i> <span>Live</span>';
+      } else {
+        el.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-red-500/20 text-red-400';
+        el.innerHTML = '<i class="fas fa-wifi-slash"></i> <span>Offline</span>';
+      }
+    }
+
+    // Refresh Backend Status
+    async function refreshBackendStatus() {
+      try {
+        const res = await fetch(`${API}/status`);
+        const data = await res.json();
+        backendRunning = data.running;
+        sessionId = data.session_id;
+        stats = {
+          totalReps: data.reps || 0,
+          correctReps: data.correct_reps || 0,
+          wrongReps: data.wrong_reps || 0,
+          injuryAlerts: data.injury_alerts || 0
+        };
+        updateBackendStatusUI();
+        updateUI();
+      } catch (err) {
+        backendRunning = false;
+        updateBackendStatusUI();
+      }
+    }
+
+    // Update Backend Status UI
+    function updateBackendStatusUI() {
+      const el = document.getElementById('backendStatus');
+      const btnStart = document.getElementById('btnStart');
+      const btnStop = document.getElementById('btnStop');
+      const btnReset = document.getElementById('btnReset');
+      
+      if (backendRunning) {
+        el.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-sky-500/20 text-sky-400';
+        el.innerHTML = '<i class="fas fa-circle text-xs animate-pulse"></i> <span>AI Active</span>';
+        btnStart.disabled = true;
+        btnStart.classList.add('opacity-50', 'cursor-not-allowed');
+        btnStop.disabled = false;
+        btnStop.classList.remove('opacity-50', 'cursor-not-allowed');
+        btnReset.disabled = false;
+        btnReset.classList.remove('opacity-50', 'cursor-not-allowed');
+      } else {
+        el.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-slate-500/20 text-slate-400';
+        el.innerHTML = '<i class="fas fa-circle"></i> <span>AI Idle</span>';
+        btnStart.disabled = false;
+        btnStart.classList.remove('opacity-50', 'cursor-not-allowed');
+        btnStop.disabled = true;
+        btnStop.classList.add('opacity-50', 'cursor-not-allowed');
+        btnReset.disabled = true;
+        btnReset.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+    }
+
+    // Start Backend
+    async function startBackend() {
+      showMessage('Initializing AI detection...');
+      console.log('Starting backend...');
+      
+      try {
+        // First check if backend is reachable
+        console.log('Checking backend status...');
+        const statusRes = await fetch(`${API}/status`, { 
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+        console.log('Backend status response:', statusRes.status);
+        
+        if (!statusRes.ok) {
+          throw new Error(`Backend not responding: ${statusRes.status}`);
+        }
+        
+        const statusData = await statusRes.json();
+        console.log('Current status:', statusData);
+        
+        // Start detection
+        console.log('Sending start command...');
+        const res = await fetch(`${API}/start`, { 
+          method: 'POST',
+          headers: { 'Accept': 'application/json' }
+        });
+        
+        if (!res.ok) {
+          throw new Error(`Start failed: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        console.log('Start response:', data);
+        
+        sessionId = data.session_id;
+        showMessage(data.msg || 'AI detection started');
+        startTimer();
+        
+        // Wait a moment for backend to initialize camera
+        console.log('Waiting for camera initialization...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Show video
+        console.log('Showing video stream...');
+        const videoStream = document.getElementById('videoStream');
+        const videoPlaceholder = document.getElementById('videoPlaceholder');
+        
+        videoPlaceholder.classList.add('hidden');
+        videoStream.classList.remove('hidden');
+        document.getElementById('videoOverlays').classList.remove('hidden');
+        document.getElementById('liveRepStats').classList.remove('hidden');
+        document.getElementById('timerDisplay').classList.remove('hidden');
+        
+        // Set video source with cache-busting
+        const videoUrl = `${API}/video?clean=true&t=${Date.now()}`;
+        console.log('Video URL:', videoUrl);
+        videoStream.src = videoUrl;
+        
+        // Add error handler for video with retry
+        let retryCount = 0;
+        const maxRetries = 5;
+        videoStream.onerror = (e) => {
+          console.error('Video stream error:', e);
+          retryCount++;
+          if (retryCount <= maxRetries) {
+            console.log(`Retrying video stream (${retryCount}/${maxRetries})...`);
+            setTimeout(() => {
+              videoStream.src = `${API}/video?clean=true&t=${Date.now()}`;
+            }, 1000);
+          } else {
+            showMessage('Video stream failed after retries. Refresh page.');
+          }
+        };
+        
+        // Add load handler
+        videoStream.onload = () => {
+          console.log('Video stream loaded successfully');
+          retryCount = 0; // Reset on success
+        };
+        
+        await refreshBackendStatus();
+      } catch (err) {
+        console.error('Failed to start AI detection:', err);
+        showMessage('Error: ' + err.message);
+        alert('Failed to start AI detection. Make sure:\n1. Backend is running (python main.py)\n2. Camera is connected\n3. No other app is using the camera');
+      }
+    }
+
+    // Stop Backend
+    async function stopBackend() {
+      // Immediately disable button to prevent double-clicks
+      const btnStop = document.getElementById('btnStop');
+      const btnStart = document.getElementById('btnStart');
+      btnStop.disabled = true;
+      btnStop.classList.add('opacity-50', 'cursor-not-allowed');
+
+      showMessage('Stopping AI detection...');
+
+      // *** CRITICAL: Clear video src FIRST so browser releases the MJPEG
+      // connection before we ask the backend to release the camera ***
+      const videoStream = document.getElementById('videoStream');
+      videoStream.src = '';
+      videoStream.classList.add('hidden');
+      document.getElementById('videoPlaceholder').classList.remove('hidden');
+      document.getElementById('videoOverlays').classList.add('hidden');
+      document.getElementById('liveRepStats').classList.add('hidden');
+      document.getElementById('timerDisplay').classList.add('hidden');
+
+      // Small delay so browser has time to close the MJPEG TCP connection
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      try {
+        const res = await fetch(`${API}/stop`, { method: 'POST' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        showMessage(data.msg || 'AI detection stopped');
+        stopTimer();
+        backendRunning = false;
+        updateBackendStatusUI();
+        await refreshBackendStatus();
+        loadSessions();
+        loadHistory();
+      } catch (err) {
+        showMessage('Stop error: ' + err.message + '. Refreshing status...');
+        // Re-poll so the UI reflects whatever state the backend is in
+        await refreshBackendStatus();
+      }
+    }
+
+    // Reset Counters - Full Reset
+    async function resetCounters() {
+      console.log('Reset button clicked');
+      try {
+        const res = await fetch(`${API}/reset`, { method: 'POST' });
+        const data = await res.json();
+        console.log('Reset response:', data);
+        
+        // Reset local stats
+        stats = {
+          totalReps: 0,
+          correctReps: 0,
+          wrongReps: 0,
+          injuryAlerts: 0
+        };
+        
+        // Reset posture data
+        posture = {
+          exercise: 'Waiting...',
+          status: 'correct',
+          issue: 'Reset complete - Start exercise',
+          rep_count: 0,
+          angles: {},
+          feedback: []
+        };
+        
+        // Reset timer
+        stopTimer();
+        startTime = Date.now();
+        startTimer();
+        
+        // Update UI
+        updateUI();
+        refreshBackendStatus();
+        
+        showMessage(data.msg || 'Counters reset successfully');
+        console.log('Reset successful:', data);
+      } catch (err) {
+        console.error('Failed to reset counters:', err);
+        showMessage('Failed to reset counters: ' + err.message);
+      }
+    }
+
+    // Timer Functions
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const secs = (elapsed % 60).toString().padStart(2, '0');
+        document.getElementById('elapsedTime').textContent = `${mins}:${secs}`;
+        document.getElementById('duration').textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      document.getElementById('elapsedTime').textContent = '00:00';
+      document.getElementById('duration').textContent = '00:00';
+    }
+
+    // Update UI safely handling potential missing elements
+    function updateUI() {
+      const isCorrect = posture.status === 'correct';
+      const accuracy = stats.totalReps > 0 ? Math.round((stats.correctReps / stats.totalReps) * 100) : 0;
+      
+      const safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+      const safeSetClass = (id, cls) => { const el = document.getElementById(id); if (el) el.className = cls; };
+      const safeSetStyleWidth = (id, width) => { const el = document.getElementById(id); if (el) el.style.width = width; };
+      const safeToggleClass = (id, cls, remove) => { const el = document.getElementById(id); if (el) { if(remove) el.classList.remove(cls); else el.classList.add(cls); } };
+
+      // Main Status Card
+      if (isCorrect) {
+        safeSetClass('mainStatusCard', 'rounded-2xl p-6 text-center status-correct transition-all duration-300');
+        safeSetText('mainStatusText', '✓ CORRECT POSTURE');
+        safeSetText('mainStatusSub', 'Keep it up! Your form looks good.');
+      } else {
+        safeSetClass('mainStatusCard', 'rounded-2xl p-6 text-center status-wrong transition-all duration-300');
+        safeSetText('mainStatusText', '✗ WRONG POSTURE');
+        safeSetText('mainStatusSub', posture.issue);
+      }
+      
+      // Exercise Badge
+      safeSetText('exerciseBadge', posture.exercise);
+      safeSetText('overlayExercise', posture.exercise);
+      
+      // Overlay Status
+      if (isCorrect) {
+        safeSetClass('overlayStatus', 'absolute top-4 right-4 px-3 py-1.5 rounded-lg font-semibold text-sm bg-emerald-500/80 text-white');
+        safeSetText('overlayStatus', 'CORRECT');
+      } else {
+        safeSetClass('overlayStatus', 'absolute top-4 right-4 px-3 py-1.5 rounded-lg font-semibold text-sm bg-red-500/80 text-white');
+        safeSetText('overlayStatus', 'WRONG');
+      }
+      
+      // Rep Counters
+      safeSetText('totalReps', stats.totalReps);
+      safeSetText('correctReps', stats.correctReps);
+      safeSetText('wrongReps', stats.wrongReps);
+      safeSetText('headerTotalReps', stats.totalReps);
+      safeSetText('headerCorrect', stats.correctReps);
+      safeSetText('headerWrong', stats.wrongReps);
+      safeSetText('bottomGood', stats.correctReps);
+      safeSetText('bottomBad', stats.wrongReps);
+      
+      // Stats
+      safeSetText('injuryAlerts', stats.injuryAlerts);
+      safeSetText('accuracy', `${accuracy}%`);
+      safeSetText('accuracyText', `${accuracy}% accuracy`);
+      safeSetStyleWidth('accuracyBar', `${accuracy}%`);
+      
+      // Rep Progress Bar
+      if (stats.totalReps > 0) {
+        safeToggleClass('repProgressBar', 'hidden', true);
+        const goodPct = (stats.correctReps / stats.totalReps) * 100;
+        const badPct = (stats.wrongReps / stats.totalReps) * 100;
+        safeSetStyleWidth('goodBar', `${goodPct}%`);
+        safeSetStyleWidth('badBar', `${badPct}%`);
+      } else {
+        safeToggleClass('repProgressBar', 'hidden', false);
+      }
+      
+    // Simple Feedback Panel
+      if (isCorrect) {
+        safeSetClass('simpleFeedback', 'p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30');
+        safeSetClass('feedbackIcon', 'fas fa-check-circle text-emerald-400 text-xl');
+        safeSetClass('feedbackTitle', 'font-semibold text-emerald-400');
+        safeSetText('feedbackTitle', 'Great Form!');
+        if (stats.totalReps > 0) {
+          safeSetText('feedbackMessage', 'Your form looks good! Keep it up and maintain steady breathing.');
+        } else {
+          safeSetText('feedbackMessage', 'Ready to start! Begin your exercise when you\'re ready.');
+        }
+      } else {
+        safeSetClass('simpleFeedback', 'p-4 rounded-xl bg-red-500/10 border border-red-500/30');
+        safeSetClass('feedbackIcon', 'fas fa-exclamation-circle text-red-400 text-xl');
+        safeSetClass('feedbackTitle', 'font-semibold text-red-400');
+        safeSetText('feedbackTitle', 'Form Check');
+        safeSetText('feedbackMessage', posture.issue);
+      }
+    }
+
+    // Show Message
+    function showMessage(msg) {
+      const el = document.getElementById('backendMsg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    // Toggle Live/Offline (WebSocket Connection)
+    function toggleLive() {
+      if (wsConnected) {
+        // Disconnect
+        if (ws) {
+          ws.close();
+          ws = null;
+        }
+        wsConnected = false;
+        updateWsStatus(false);
+        showMessage('Disconnected from live feed');
+      } else {
+        // Connect
+        connectWebSocket();
+        showMessage('Connecting to live feed...');
+      }
+    }
+    // Toggle History - Enhanced with user feedback
+    function toggleHistory() {
+      console.log('View History button clicked');
+      const section = document.getElementById('historySection');
+      const btnText = document.getElementById('historyBtnText');
+      
+      if (!section) {
+        console.error('History section not found');
+        return;
+      }
+      
+      if (section.classList.contains('hidden')) {
+        section.classList.remove('hidden');
+        btnText.textContent = 'Hide History';
+        // Load both sessions and history
+        loadSessions();
+        loadHistory();
+        showMessage('Loading history...');
+        console.log('History section shown');
+      } else {
+        section.classList.add('hidden');
+        btnText.textContent = 'View History';
+        console.log('History section hidden');
+      }
+    }
+
+    // Load Sessions
+    async function loadSessions() {
+      try {
+        const res = await fetch(`${API}/sessions`);
+        const data = await res.json();
+        
+        const container = document.getElementById('sessionsTable');
+        if (data.ok && data.sessions && data.sessions.length > 0) {
+          let html = `<table class="history-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Exercise</th>
+                <th>Reps</th>
+                <th>Correct</th>
+                <th>Wrong</th>
+                <th>Duration</th>
+                <th>Alerts</th>
+              </tr>
+            </thead>
+            <tbody>`;
+          
+          data.sessions.forEach(session => {
+            const date = new Date(session.start_time).toLocaleDateString();
+            const mins = Math.floor(session.duration_seconds / 60);
+            const secs = session.duration_seconds % 60;
+            html += `
+              <tr>
+                <td class="text-slate-300">${date}</td>
+                <td class="text-sky-400 font-medium">${session.exercise_type}</td>
+                <td class="text-white font-semibold">${session.total_reps}</td>
+                <td class="text-emerald-400">${session.correct_reps}</td>
+                <td class="text-red-400">${session.wrong_reps}</td>
+                <td class="text-slate-400">${mins}m ${secs}s</td>
+                <td class="text-orange-400">${session.injury_alerts}</td>
+              </tr>
+            `;
+          });
+          
+          html += '</tbody></table>';
+          container.innerHTML = html;
+        } else {
+          container.innerHTML = '<p class="text-slate-500">No sessions recorded yet.</p>';
+        }
+      } catch (err) {
+        console.error('Failed to load sessions:', err);
+      }
+    }
+
+    // Load History
+    async function loadHistory() {
+      try {
+        const res = await fetch(`${API}/history`);
+        const data = await res.json();
+        
+        const container = document.getElementById('historyTable');
+        if (data.ok && data.history && data.history.length > 0) {
+          let html = `<table class="history-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Exercise</th>
+                <th>Issue</th>
+                <th>Session</th>
+              </tr>
+            </thead>
+            <tbody>`;
+          
+          data.history.slice(0, 20).forEach(item => {
+            const time = item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : new Date(item.timestamp).toLocaleString();
+            html += `
+              <tr>
+                <td class="text-slate-400 text-sm">${time}</td>
+                <td class="text-sky-400">${item.exercise}</td>
+                <td class="text-red-400">${item.issue}</td>
+                <td class="text-slate-500 text-sm">${item.session_id || '—'}</td>
+              </tr>
+            `;
+          });
+          
+          html += '</tbody></table>';
+          container.innerHTML = html;
+        } else {
+          container.innerHTML = '<p class="text-slate-500">No posture issues recorded yet.</p>';
+        }
+      } catch (err) {
+        console.error('Failed to load history:', err);
+      }
+    }
+
+    // Firestore Listener
+    function setupFirestoreListener() {
+      const ref = db.collection('postureLogs').doc('latest');
+      ref.onSnapshot(async (snapshot) => {
+        if (!snapshot.exists) {
+          await ref.set({
+            exercise: 'Waiting...',
+            status: 'correct',
+            issue: 'Start AI detection to begin',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+          return;
+        }
+        
+        const data = snapshot.data() || {};
+        const normalized = data.status === 'correct' ? 'correct' : 'wrong';
+        
+        if (!wsConnected) {
+          posture = {
+            exercise: data.exercise || 'Unknown',
+            status: normalized,
+            issue: data.issue || '—',
+            rep_count: data.rep_count || 0,
+            angles: data.angles || {},
+            feedback: data.feedback || []
+          };
+          stats.totalReps = data.rep_count || 0;
+          updateUI();
+        }
+        
+        // Log wrong posture
+        if (normalized === 'wrong' && lastLoggedStatus !== 'wrong') {
+          db.collection('postureHistory').add({
+            status: 'wrong',
+            exercise: data.exercise || 'Unknown',
+            issue: data.issue || '—',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            session_id: sessionId
+          });
+        }
+        
+        lastLoggedStatus = normalized;
+      });
+    }
+
+    // Exercise Details Data
+    const exerciseData = {
+      squat: {
+        name: 'Squat',
+        icon: 'fa-walking',
+        difficulty: 'Beginner Friendly',
+        difficultyColor: 'text-emerald-400',
+        description: 'A lower body exercise that targets thighs, hips, and buttocks.',
+        target: 'Legs, Glutes',
+        calories: '~8 per min',
+        tip: 'Keep your back straight and don\'t let knees go past toes',
+        videoUrl: 'https://media.giphy.com/media/5t9IcXiBCywKvnw0pG/giphy.gif'
+      },
+      pushup: {
+        name: 'Push-up',
+        icon: 'fa-hand-rock',
+        difficulty: 'Intermediate',
+        difficultyColor: 'text-yellow-400',
+        description: 'Classic upper body exercise for chest, shoulders, and triceps.',
+        target: 'Chest, Arms',
+        calories: '~7 per min',
+        tip: 'Keep body straight from head to heels, don\'t arch back',
+        videoUrl: 'https://c.tenor.com/8y8D5F8l8Y0AAAAC/pushup-push-up.gif'
+      },
+      lunge: {
+        name: 'Lunge',
+        icon: 'fa-running',
+        difficulty: 'Intermediate',
+        difficultyColor: 'text-yellow-400',
+        description: 'Single-leg exercise that builds strength and balance.',
+        target: 'Legs, Glutes',
+        calories: '~9 per min',
+        tip: 'Step forward far enough, keep front knee over ankle',
+        videoUrl: 'https://c.tenor.com/Q5d1QGUEXb0AAAAC/lunge-exercise.gif'
+      },
+      plank: {
+        name: 'Plank',
+        icon: 'fa-minus',
+        difficulty: 'Beginner Friendly',
+        difficultyColor: 'text-emerald-400',
+        description: 'Core strengthening isometric hold exercise.',
+        target: 'Core, Abs',
+        calories: '~5 per min',
+        tip: 'Engage core, keep body straight, breathe normally',
+        videoUrl: 'https://c.tenor.com/9tF8fI6iF5oAAAAC/plank-exercise.gif'
+      },
+      jumping_jack: {
+        name: 'Jumping Jack',
+        icon: 'fa-star',
+        difficulty: 'Beginner Friendly',
+        difficultyColor: 'text-emerald-400',
+        description: 'Full body cardio exercise to raise heart rate.',
+        target: 'Full Body',
+        calories: '~10 per min',
+        tip: 'Land softly on balls of feet, keep movements controlled',
+        videoUrl: 'https://c.tenor.com/8s2F5h8q8y0AAAAC/jumping-jacks-exercise.gif'
+      }
+    };
+
+    // Show Exercise Details
+    function showExerciseDetails() {
+      const select = document.getElementById('exerciseSelect');
+      const exercise = exerciseData[select.value];
+      
+      if (exercise) {
+        document.getElementById('exerciseName').textContent = exercise.name;
+        document.getElementById('exerciseDifficulty').textContent = exercise.difficulty;
+        document.getElementById('exerciseDifficulty').className = `text-xs ${exercise.difficultyColor}`;
+        document.getElementById('exerciseDescription').textContent = exercise.description;
+        document.getElementById('exerciseTarget').textContent = exercise.target;
+        document.getElementById('exerciseCalories').textContent = exercise.calories;
+        document.getElementById('exerciseTip').innerHTML = `<i class="fas fa-lightbulb mr-1"></i> ${exercise.tip}`;
+        
+        // Update icon
+        const iconEl = document.querySelector('#exerciseIcon i');
+        iconEl.className = `fas ${exercise.icon} text-sky-400`;
+        
+        // Update animation URL (if animation is showing)
+        const animationContainer = document.getElementById('exerciseAnimationContainer');
+        const exerciseGif = document.getElementById('exerciseGif');
+        if (!animationContainer.classList.contains('hidden')) {
+          exerciseGif.src = exercise.videoUrl;
+        }
+        
+        showMessage(`Selected: ${exercise.name}`);
+      }
+    }
+
+    // GIF Animation Variables
+    let animationVisible = false;
+
+    // Toggle Exercise Animation
+    function toggleExerciseAnimation() {
+      const container = document.getElementById('exerciseAnimationContainer');
+      const exerciseGif = document.getElementById('exerciseGif');
+      const btnText = document.getElementById('animationToggleText');
+      const select = document.getElementById('exerciseSelect');
+      const exercise = exerciseData[select.value];
+      
+      animationVisible = !animationVisible;
+      
+      if (animationVisible) {
+        container.classList.remove('hidden');
+        btnText.textContent = 'Hide Animation Demo';
+        if (exercise && exercise.videoUrl) {
+          exerciseGif.src = exercise.videoUrl;
+        }
+      } else {
+        container.classList.add('hidden');
+        btnText.textContent = 'Show Animation Demo';
+        exerciseGif.src = '';
+      }
+    }
+
+    // AI Features Functions
+    let voiceCoachEnabled = false;
+    let lastVoiceMessage = '';
+
+    // Toggle Voice Coach
+    function toggleVoiceCoach() {
+      voiceCoachEnabled = !voiceCoachEnabled;
+      const btn = document.getElementById('voiceToggle');
+      if (voiceCoachEnabled) {
+        btn.textContent = 'ON';
+        btn.className = 'px-3 py-1.5 rounded-full text-sm font-medium bg-sky-500 text-white';
+        showMessage('AI Voice Coach enabled');
+      } else {
+        btn.textContent = 'OFF';
+        btn.className = 'px-3 py-1.5 rounded-full text-sm font-medium bg-slate-600 text-white hover:bg-sky-500 transition-colors';
+        showMessage('AI Voice Coach disabled');
+      }
+    }
+
+    // Speak using text-to-speech
+    function speak(message) {
+      if (!voiceCoachEnabled || !message || message === lastVoiceMessage) return;
+      
+      // Check if browser supports speech synthesis
+      if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        
+        window.speechSynthesis.speak(utterance);
+        lastVoiceMessage = message;
+      }
+    }
+
+    // Generate Workout Plan - now delegates to the wizard
+    function generateWorkoutPlan() { openPlanWizard(); }
+
+    // Update Injury Risk Display
+    async function updateInjuryRisk() {
+      try {
+        const res = await fetch(`${API}/injury-risk`);
+        const data = await res.json();
+        
+        if (data.ok) {
+          const riskLevel = document.getElementById('riskLevel');
+          const riskBar = document.getElementById('riskBar');
+          const riskRecommendation = document.getElementById('riskRecommendation');
+          
+          riskLevel.textContent = data.risk_level;
+          riskRecommendation.textContent = data.recommendations[0];
+          
+          // Update color based on risk level
+          const score = data.risk_score * 100;
+          riskBar.style.width = `${Math.min(score, 100)}%`;
+          
+          if (data.risk_level === 'Low') {
+            riskLevel.className = 'text-sm font-semibold text-emerald-400';
+            riskBar.className = 'bg-emerald-500 h-2 rounded-full transition-all duration-300';
+          } else if (data.risk_level === 'Moderate') {
+            riskLevel.className = 'text-sm font-semibold text-yellow-400';
+            riskBar.className = 'bg-yellow-500 h-2 rounded-full transition-all duration-300';
+          } else {
+            riskLevel.className = 'text-sm font-semibold text-red-400';
+            riskBar.className = 'bg-red-500 h-2 rounded-full transition-all duration-300';
+            
+            // Speak warning if risk is high
+            if (voiceCoachEnabled) {
+              speak('Warning: High injury risk detected. Please rest or correct your form.');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to get injury risk:', err);
+      }
+    }
+
+    // Update Range of Motion & Fatigue
+    async function updateROMAnalysis() {
+      try {
+        const res = await fetch(`${API}/rom-analysis`);
+        const data = await res.json();
+        
+        if (data.ok) {
+          // Update fatigue level
+          const fatigueLevel = document.getElementById('fatigueLevel');
+          fatigueLevel.textContent = data.fatigue_level;
+          
+          if (data.fatigue_level === 'Low') {
+            fatigueLevel.className = 'text-sm font-semibold text-emerald-400';
+          } else if (data.fatigue_level === 'Moderate') {
+            fatigueLevel.className = 'text-sm font-semibold text-yellow-400';
+          } else {
+            fatigueLevel.className = 'text-sm font-semibold text-red-400';
+          }
+          
+          // Update ROM display if available
+          const romPanel = document.getElementById('romPanel');
+          const romGrid = document.getElementById('romGrid');
+          
+          if (data.rom_data && Object.keys(data.rom_data).length > 0) {
+            romPanel.classList.remove('hidden');
+            romGrid.innerHTML = '';
+            
+            for (const [joint, values] of Object.entries(data.rom_data)) {
+              const div = document.createElement('div');
+              div.className = 'bg-slate-700/50 rounded p-2';
+              div.innerHTML = `
+                <div class="text-slate-400 text-xs">${joint.replace(/_/g, ' ')}</div>
+                <div class="text-sky-400 font-semibold">${Math.round(values.range)}° range</div>
+                <div class="text-xs text-slate-500">${Math.round(values.min)}°-${Math.round(values.max)}°</div>
+              `;
+              romGrid.appendChild(div);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to get ROM analysis:', err);
+      }
+    }
+
+    // ==================== AUTH FUNCTIONS ====================
+    let currentUser = null;
+    const auth = firebase.auth();
+
+    // Switch between login and signup tabs
+    function switchAuthTab(tab) {
+      const loginTab = document.getElementById('loginTab');
+      const signupTab = document.getElementById('signupTab');
+      const loginForm = document.getElementById('loginForm');
+      const signupForm = document.getElementById('signupForm');
+      
+      if (tab === 'login') {
+        loginTab.classList.add('active');
+        signupTab.classList.remove('active');
+        loginForm.classList.remove('hidden');
+        signupForm.classList.add('hidden');
+      } else {
+        signupTab.classList.add('active');
+        loginTab.classList.remove('active');
+        signupForm.classList.remove('hidden');
+        loginForm.classList.add('hidden');
+      }
+      hideAuthError();
+    }
+
+    // Show auth error
+    function showAuthError(message) {
+      const errorEl = document.getElementById('authError');
+      errorEl.textContent = message;
+      errorEl.classList.remove('hidden');
+    }
+
+    // Hide auth error
+    function hideAuthError() {
+      document.getElementById('authError').classList.add('hidden');
+    }
+
+    // Login with email/password
+    async function login() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      
+      if (!email || !password) {
+        showAuthError('Please enter email and password');
+        return;
+      }
+      
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        hideAuthError();
+      } catch (error) {
+        showAuthError(error.message);
+      }
+    }
+
+    // Sign up new user
+    async function signup() {
+      const name = document.getElementById('signupName').value;
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
+      const confirm = document.getElementById('signupConfirm').value;
+      
+      if (!name || !email || !password || !confirm) {
+        showAuthError('Please fill in all fields');
+        return;
+      }
+      
+      if (password.length < 6) {
+        showAuthError('Password must be at least 6 characters');
+        return;
+      }
+      
+      if (password !== confirm) {
+        showAuthError('Passwords do not match');
+        return;
+      }
+      
+      try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        // Update profile with name
+        await userCredential.user.updateProfile({ displayName: name });
+        // Create user document in Firestore
+        await db.collection('users').doc(userCredential.user.uid).set({
+          name: name,
+          email: email,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        hideAuthError();
+      } catch (error) {
+        showAuthError(error.message);
+      }
+    }
+
+    // Login as guest (anonymous)
+    async function loginAsGuest() {
+      try {
+        await auth.signInAnonymously();
+        hideAuthError();
+      } catch (error) {
+        showAuthError(error.message);
+      }
+    }
+
+    // Logout
+    async function logout() {
+      try {
+        await auth.signOut();
+        toggleUserMenu(); // Close menu
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    }
+
+    // Toggle user menu
+    function toggleUserMenu() {
+      const menu = document.getElementById('userMenu');
+      menu.classList.toggle('hidden');
+    }
+
+    // Update UI based on auth state
+    function updateAuthUI(user) {
+      const authOverlay = document.getElementById('authOverlay');
+      const userMenuContainer = document.getElementById('userMenuContainer');
+      const userDisplayName = document.getElementById('userDisplayName');
+      
+      if (user) {
+        // User is signed in
+        authOverlay.classList.add('hidden');
+        userMenuContainer.classList.remove('hidden');
+        userDisplayName.textContent = user.displayName || user.email || 'Guest';
+        currentUser = user;
+      } else {
+        // User is signed out
+        authOverlay.classList.remove('hidden');
+        userMenuContainer.classList.add('hidden');
+        currentUser = null;
+      }
+    }
+
+    // Listen for auth state changes
+    auth.onAuthStateChanged((user) => {
+      updateAuthUI(user);
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      connectWebSocket();
+      refreshBackendStatus();
+      setupFirestoreListener();
+      
+      // Poll status every 5 seconds
+      setInterval(refreshBackendStatus, 5000);
+      
+      // Poll AI analysis every 3 seconds
+      setInterval(() => {
+        if (backendRunning) {
+          updateInjuryRisk();
+          updateROMAnalysis();
+        }
+      }, 3000);
+    });
+  </script>
+
+  <!-- ============================================================ -->
+  <!-- 4-STEP AI PLAN WIZARD MODAL                                   -->
+  <!-- ============================================================ -->
+  <div id="planWizardOverlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.8);backdrop-filter:blur(8px)">
+    <div class="w-full max-w-lg glass-card rounded-3xl p-8 relative" style="max-height:90vh;overflow-y:auto">
+      <!-- Close -->
+      <button onclick="closePlanWizard()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-all">
+        <i class="fas fa-times"></i>
+      </button>
+
+      <!-- Step Indicator -->
+      <div class="flex items-center gap-2 mb-8">
+        <div id="wi1" class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all bg-sky-500 text-white">1</div>
+        <div class="flex-1 h-1 rounded-full bg-slate-600" id="wline1"><div id="wfill1" class="h-1 rounded-full bg-sky-500 transition-all duration-500" style="width:0%"></div></div>
+        <div id="wi2" class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all bg-slate-600 text-slate-400">2</div>
+        <div class="flex-1 h-1 rounded-full bg-slate-600"><div id="wfill2" class="h-1 rounded-full bg-sky-500 transition-all duration-500" style="width:0%"></div></div>
+        <div id="wi3" class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all bg-slate-600 text-slate-400">3</div>
+        <div class="flex-1 h-1 rounded-full bg-slate-600"><div id="wfill3" class="h-1 rounded-full bg-sky-500 transition-all duration-500" style="width:0%"></div></div>
+        <div id="wi4" class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all bg-slate-600 text-slate-400">4</div>
+      </div>
+
+      <!-- STEP 1: Profile -->
+      <div id="wstep1">
+        <h2 class="text-2xl font-bold text-white mb-1">👤 Your Profile</h2>
+        <p class="text-slate-400 text-sm mb-6">Step 1 of 4 — Basic info so AI knows you</p>
+        <div class="space-y-4">
+          <div>
+            <label class="text-xs text-slate-400 font-semibold uppercase tracking-wider block mb-1">Full Name</label>
+            <input type="text" id="wName" placeholder="e.g. Alex" class="w-full bg-slate-800 text-white rounded-xl px-4 py-3 border border-slate-600 focus:border-sky-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 font-semibold uppercase tracking-wider block mb-1">Age</label>
+            <input type="number" id="wAge" placeholder="e.g. 24" class="w-full bg-slate-800 text-white rounded-xl px-4 py-3 border border-slate-600 focus:border-sky-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 font-semibold uppercase tracking-wider block mb-2">Gender</label>
+            <div class="flex gap-3">
+              <button onclick="selectGender('Male')" id="gMale" class="flex-1 py-2.5 rounded-xl border-2 border-slate-600 text-slate-300 font-semibold hover:border-sky-500 transition-all">Male</button>
+              <button onclick="selectGender('Female')" id="gFemale" class="flex-1 py-2.5 rounded-xl border-2 border-slate-600 text-slate-300 font-semibold hover:border-sky-500 transition-all">Female</button>
+              <button onclick="selectGender('Other')" id="gOther" class="flex-1 py-2.5 rounded-xl border-2 border-slate-600 text-slate-300 font-semibold hover:border-sky-500 transition-all">Other</button>
+            </div>
+          </div>
+        </div>
+        <button onclick="wNext(2)" class="mt-8 w-full bg-gradient-to-r from-sky-500 to-violet-500 text-white py-3 rounded-xl font-bold hover:opacity-90 transition-all">Next <i class="fas fa-arrow-right ml-1"></i></button>
+      </div>
+
+      <!-- STEP 2: BMI -->
+      <div id="wstep2" class="hidden">
+        <h2 class="text-2xl font-bold text-white mb-1">⚖️ Body Metrics</h2>
+        <p class="text-slate-400 text-sm mb-6">Step 2 of 4 — Your BMI shapes the workout intensity</p>
+        <div class="flex gap-4 mb-4">
+          <div class="flex-1">
+            <label class="text-xs text-slate-400 font-semibold uppercase tracking-wider block mb-1">Height (cm)</label>
+            <input type="number" id="wHeight" placeholder="175" class="w-full bg-slate-800 text-white rounded-xl px-4 py-3 border border-slate-600 focus:border-sky-500 focus:outline-none">
+          </div>
+          <div class="flex-1">
+            <label class="text-xs text-slate-400 font-semibold uppercase tracking-wider block mb-1">Weight (kg)</label>
+            <input type="number" id="wWeight" placeholder="70" class="w-full bg-slate-800 text-white rounded-xl px-4 py-3 border border-slate-600 focus:border-sky-500 focus:outline-none">
+          </div>
+        </div>
+        <button onclick="wizardCalcBMI()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-semibold transition-all mb-4">
+          <i class="fas fa-calculator mr-2"></i>Calculate BMI
+        </button>
+        <div id="wBmiResult" class="hidden p-4 bg-slate-800/60 rounded-xl border border-slate-700 mb-4">
+          <div class="flex justify-between items-center mb-2">
+            <div><p class="text-xs text-slate-400">BMI Score</p><p id="wBmiScore" class="text-3xl font-black text-sky-400"></p></div>
+            <div class="text-right"><p class="text-xs text-slate-400">Category</p><p id="wBmiCat" class="text-lg font-bold text-emerald-400"></p></div>
+          </div>
+          <div class="w-full bg-slate-700 rounded-full h-2"><div id="wBmiBar" class="h-2 rounded-full bg-emerald-500 transition-all duration-700" style="width:0%"></div></div>
+          <p id="wBmiTip" class="text-xs text-slate-400 mt-2"></p>
+        </div>
+        <div class="flex gap-3">
+          <button onclick="wNext(1)" class="flex-1 bg-slate-700 text-white py-3 rounded-xl font-semibold hover:bg-slate-600 transition-all"><i class="fas fa-arrow-left mr-1"></i> Back</button>
+          <button onclick="wNext(3)" id="wBmiNextBtn" class="flex-1 bg-gradient-to-r from-sky-500 to-violet-500 text-white py-3 rounded-xl font-bold hover:opacity-90 transition-all opacity-50 cursor-not-allowed" disabled>Next <i class="fas fa-arrow-right ml-1"></i></button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Goals -->
+      <div id="wstep3" class="hidden">
+        <h2 class="text-2xl font-bold text-white mb-1">🎯 Your Goals</h2>
+        <p class="text-slate-400 text-sm mb-6">Step 3 of 4 — Choose your fitness target</p>
+        <div class="grid grid-cols-2 gap-3 mb-6">
+          <button onclick="selectGoal('Fat Loss')" id="goal_fat" class="p-4 rounded-2xl border-2 border-slate-600 text-left hover:border-pink-500 transition-all">
+            <div class="text-2xl mb-2">🔥</div><p class="font-bold text-white text-sm">Fat Loss</p><p class="text-xs text-slate-400">Burn calories, lean out</p>
+          </button>
+          <button onclick="selectGoal('Muscle Gain')" id="goal_muscle" class="p-4 rounded-2xl border-2 border-slate-600 text-left hover:border-pink-500 transition-all">
+            <div class="text-2xl mb-2">💪</div><p class="font-bold text-white text-sm">Muscle Gain</p><p class="text-xs text-slate-400">Build size and strength</p>
+          </button>
+          <button onclick="selectGoal('Endurance')" id="goal_endurance" class="p-4 rounded-2xl border-2 border-slate-600 text-left hover:border-pink-500 transition-all">
+            <div class="text-2xl mb-2">🏃</div><p class="font-bold text-white text-sm">Endurance</p><p class="text-xs text-slate-400">Stamina & cardio</p>
+          </button>
+          <button onclick="selectGoal('Flexibility')" id="goal_flex" class="p-4 rounded-2xl border-2 border-slate-600 text-left hover:border-pink-500 transition-all">
+            <div class="text-2xl mb-2">🧘</div><p class="font-bold text-white text-sm">Flexibility</p><p class="text-xs text-slate-400">Mobility & recovery</p>
+          </button>
+        </div>
+        <h3 class="text-white font-semibold mb-3">Fitness Level</h3>
+        <div class="flex gap-3 mb-6">
+          <button onclick="selectLevel('Beginner')" id="lvl_beginner" class="flex-1 py-2.5 rounded-xl border-2 border-slate-600 text-slate-300 font-semibold hover:border-violet-500 transition-all text-sm">Beginner</button>
+          <button onclick="selectLevel('Intermediate')" id="lvl_intermediate" class="flex-1 py-2.5 rounded-xl border-2 border-slate-600 text-slate-300 font-semibold hover:border-violet-500 transition-all text-sm">Intermediate</button>
+          <button onclick="selectLevel('Advanced')" id="lvl_advanced" class="flex-1 py-2.5 rounded-xl border-2 border-slate-600 text-slate-300 font-semibold hover:border-violet-500 transition-all text-sm">Advanced</button>
+        </div>
+        <div class="flex gap-3">
+          <button onclick="wNext(2)" class="flex-1 bg-slate-700 text-white py-3 rounded-xl font-semibold hover:bg-slate-600 transition-all"><i class="fas fa-arrow-left mr-1"></i> Back</button>
+          <button onclick="wGeneratePlan()" class="flex-1 bg-gradient-to-r from-pink-500 to-violet-500 text-white py-3 rounded-xl font-bold hover:opacity-90 transition-all"><i class="fas fa-magic mr-1"></i> Generate Plan</button>
+        </div>
+      </div>
+
+      <!-- STEP 4: Weekly AI Plan -->
+      <div id="wstep4" class="hidden">
+        <div id="wGenerating" class="text-center py-8">
+          <div class="text-5xl mb-4 animate-spin inline-block">⚙️</div>
+          <h2 class="text-xl font-bold text-white mb-2">AI is building your weekly plan...</h2>
+          <p id="wGenMsg" class="text-slate-400 text-sm">Analyzing your profile...</p>
+        </div>
+        <div id="wPlanOutput" class="hidden">
+          <div class="flex items-start justify-between mb-3">
+            <div>
+              <h2 class="text-xl font-bold text-white">📅 Your 7-Day Plan</h2>
+              <p id="wPlanSubtitle" class="text-slate-400 text-xs mt-0.5"></p>
+            </div>
+            <button onclick="downloadPlanPDF()" title="Download PDF" class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all">
+              <i class="fas fa-download"></i> PDF
+            </button>
+          </div>
+
+          <!-- Day Tabs -->
+          <div class="flex gap-1 mb-4 overflow-x-auto pb-1" id="wDayTabs"></div>
+
+          <!-- Day Content -->
+          <div id="wDayContent" class="space-y-2 mb-4" style="max-height:280px;overflow-y:auto"></div>
+
+          <!-- Daily Health Tip -->
+          <div class="p-3 bg-gradient-to-br from-yellow-900/30 to-orange-900/30 rounded-xl border border-yellow-500/20 mb-4">
+            <h4 class="text-xs font-bold text-yellow-300 mb-1 flex items-center gap-1"><i class="fas fa-heart"></i> Today's Health Tip</h4>
+            <p id="wHealthTip" class="text-slate-300 text-xs leading-relaxed"></p>
+          </div>
+
+          <!-- AI Recommendation -->
+          <div class="p-3 bg-gradient-to-br from-pink-900/40 to-violet-900/40 rounded-xl border border-pink-500/20 mb-4">
+            <h4 class="text-xs font-bold text-white mb-1 flex items-center gap-1"><i class="fas fa-lightbulb text-yellow-400"></i> AI Recommendation</h4>
+            <p id="wAiTip" class="text-slate-300 text-xs leading-relaxed"></p>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="closePlanWizard()" class="bg-slate-700 text-white py-2.5 rounded-xl font-semibold hover:bg-slate-600 transition-all text-xs">Close</button>
+            <button onclick="applyPlanToSidebar()" class="bg-gradient-to-r from-pink-500 to-violet-500 text-white py-2.5 rounded-xl font-bold hover:opacity-90 transition-all text-xs"><i class="fas fa-check mr-1"></i>Apply</button>
+            <button onclick="startDetectionFromPlan()" class="bg-gradient-to-r from-emerald-500 to-sky-500 text-white py-2.5 rounded-xl font-bold hover:opacity-90 transition-all text-xs"><i class="fas fa-camera mr-1"></i>Start</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       EXERCISE → BACKEND KEY MAP  (wizard plan names → backend keys)
+    ============================================================ */
+    const EXERCISE_KEY_MAP = {
+      'Squats':       'squat',
+      'Squat Jumps':  'squat',
+      'Push-Ups':     'pushup',
+      'Lunges':       'lunge',
+      'Plank':        'plank',
+      'Jumping Jacks':'jumping_jack',
+      'Burpees':      'squat',
+      'Mountain Climbers': 'lunge',
+      'High Knees':   'jumping_jack',
+      'Box Steps':    'squat',
+      'Bicycle Crunch':'plank',
+      'Jogging in Place':'jumping_jack',
+      'Tricep Dips':  'pushup',
+      'Shoulder Press':'pushup',
+      'Deadlift':     'squat',
+      'Hip Flexor Stretch':'lunge',
+      'Cat-Cow Stretch':   'plank',
+      "World's Greatest Stretch":'lunge',
+      'Pigeon Pose':  'lunge',
+      'Thoracic Rotation': 'plank'
+    };
+
+    /* ============================================================
+       BMI Calculator (inline sidebar) — FULLY INTEGRATED
+    ============================================================ */
+    function calculateBMI() {
+      const h = parseFloat(document.getElementById('bmiHeight').value);
+      const w = parseFloat(document.getElementById('bmiWeight').value);
+      if (!h || !w || h < 50 || w < 10) { alert('Please enter valid height and weight.'); return; }
+      const bmi = (w / ((h / 100) ** 2)).toFixed(1);
+      let cat, color, tip, pct, riskBaseline;
+      if (bmi < 18.5)      { cat='Underweight'; color='#f59e0b'; tip='Consider strength training & caloric surplus.'; pct=20; riskBaseline=25; }
+      else if (bmi < 25)   { cat='Healthy';     color='#22c55e'; tip='Great! Maintain your current lifestyle.';      pct=50; riskBaseline=10; }
+      else if (bmi < 30)   { cat='Overweight';  color='#f97316'; tip='Focus on cardio & balanced diet.';             pct=70; riskBaseline=40; }
+      else                 { cat='Obese';        color='#ef4444'; tip='Consult a physician before intense exercise.'; pct=95; riskBaseline=65; }
+
+      document.getElementById('bmiScore').textContent = bmi;
+      document.getElementById('bmiCategory').textContent = cat;
+      document.getElementById('bmiCategory').style.color = color;
+      document.getElementById('bmiBar').style.width = pct + '%';
+      document.getElementById('bmiBar').style.background = color;
+      document.getElementById('bmiTip').textContent = tip;
+      document.getElementById('bmiResult').classList.remove('hidden');
+
+      // ── Integration 1: update injury risk bar with BMI baseline ──
+      const riskBar = document.getElementById('riskBar');
+      const riskLevel = document.getElementById('riskLevel');
+      const riskRec   = document.getElementById('riskRecommendation');
+      if (!backendRunning) {
+        riskBar.style.width = riskBaseline + '%';
+        if (riskBaseline < 20) {
+          riskBar.className = 'bg-emerald-500 h-2 rounded-full transition-all duration-300';
+          riskLevel.textContent = 'Low'; riskLevel.className = 'text-sm font-semibold text-emerald-400';
+          riskRec.textContent = 'Excellent BMI. Low baseline injury risk.';
+        } else if (riskBaseline < 45) {
+          riskBar.className = 'bg-yellow-500 h-2 rounded-full transition-all duration-300';
+          riskLevel.textContent = 'Moderate'; riskLevel.className = 'text-sm font-semibold text-yellow-400';
+          riskRec.textContent = 'BMI suggests warming up thoroughly.';
+        } else {
+          riskBar.className = 'bg-red-500 h-2 rounded-full transition-all duration-300';
+          riskLevel.textContent = 'High'; riskLevel.className = 'text-sm font-semibold text-red-400';
+          riskRec.textContent = 'High BMI — start with low-impact exercises.';
+        }
+      }
+
+      // ── Integration 2: Voice coach announces BMI category ──
+      if (voiceCoachEnabled) {
+        speak(`BMI calculated: ${bmi}. Category: ${cat}. ${tip}`);
+      }
+
+      showMessage(`BMI ${bmi} — ${cat}`);
+    }
+
+    /* ============================================================
+       Wizard State
+    ============================================================ */
+    const wizard = { name:'', age:'', gender:'', height:'', weight:'', bmi:null, bmiCat:'', goal:'', level:'' };
+
+    function openPlanWizard() {
+      // ── Pre-fill wizard BMI if sidebar already calculated ──
+      const sidebarH = document.getElementById('bmiHeight').value;
+      const sidebarW = document.getElementById('bmiWeight').value;
+      if (sidebarH) document.getElementById('wHeight').value = sidebarH;
+      if (sidebarW) document.getElementById('wWeight').value = sidebarW;
+
+      document.getElementById('planWizardOverlay').classList.remove('hidden');
+      showWStep(1);
+    }
+    function closePlanWizard() {
+      document.getElementById('planWizardOverlay').classList.add('hidden');
+    }
+
+    function showWStep(n) {
+      [1,2,3,4].forEach(i => {
+        document.getElementById('wstep'+i).classList.add('hidden');
+        const ind = document.getElementById('wi'+i);
+        ind.className = 'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ' +
+          (i < n ? 'bg-emerald-500 text-white' : i === n ? 'bg-sky-500 text-white' : 'bg-slate-600 text-slate-400');
+      });
+      document.getElementById('wstep'+n).classList.remove('hidden');
+      if (n > 1) document.getElementById('wfill'+(n-1)).style.width='100%';
+    }
+
+    function selectGender(g) {
+      wizard.gender = g;
+      ['Male','Female','Other'].forEach(x => {
+        const btn = document.getElementById('g'+x);
+        btn.className = 'flex-1 py-2.5 rounded-xl border-2 font-semibold transition-all ' +
+          (x === g ? 'border-sky-500 text-sky-400 bg-sky-500/10' : 'border-slate-600 text-slate-300 hover:border-sky-500');
+      });
+    }
+
+    function selectGoal(g) {
+      wizard.goal = g;
+      const map = { 'Fat Loss':'fat','Muscle Gain':'muscle','Endurance':'endurance','Flexibility':'flex' };
+      Object.keys(map).forEach(k => {
+        const btn = document.getElementById('goal_'+map[k]);
+        btn.className = 'p-4 rounded-2xl border-2 text-left transition-all ' +
+          (k === g ? 'border-pink-500 bg-pink-500/10' : 'border-slate-600 hover:border-pink-500');
+      });
+    }
+
+    function selectLevel(l) {
+      wizard.level = l;
+      ['Beginner','Intermediate','Advanced'].forEach(x => {
+        const btn = document.getElementById('lvl_'+x.toLowerCase());
+        btn.className = 'flex-1 py-2.5 rounded-xl border-2 font-semibold transition-all text-sm ' +
+          (x === l ? 'border-violet-500 text-violet-400 bg-violet-500/10' : 'border-slate-600 text-slate-300 hover:border-violet-500');
+      });
+    }
+
+    function wNext(step) {
+      if (step === 2) {
+        wizard.name = document.getElementById('wName').value.trim();
+        wizard.age  = document.getElementById('wAge').value.trim();
+        if (!wizard.name || !wizard.age || !wizard.gender) { alert('Please fill in all fields.'); return; }
+      }
+      showWStep(step);
+    }
+
+    function wizardCalcBMI() {
+      const h = parseFloat(document.getElementById('wHeight').value);
+      const w = parseFloat(document.getElementById('wWeight').value);
+      if (!h || !w) { alert('Enter height and weight.'); return; }
+      wizard.height = h; wizard.weight = w;
+      const bmi = (w / ((h/100)**2)).toFixed(1);
+      wizard.bmi = bmi;
+
+      // ── Sync back to sidebar BMI calculator ──
+      document.getElementById('bmiHeight').value = h;
+      document.getElementById('bmiWeight').value = w;
+
+      let cat, color, tip, pct;
+      if (bmi < 18.5)      { cat='Underweight'; color='#f59e0b'; tip='Strength + caloric surplus recommended.'; pct=20; }
+      else if (bmi < 25)   { cat='Healthy';     color='#22c55e'; tip="You're in the optimal zone — great foundation!";  pct=50; }
+      else if (bmi < 30)   { cat='Overweight';  color='#f97316'; tip='Cardio-first workouts will help most.'; pct=72; }
+      else                 { cat='Obese';        color='#ef4444'; tip='Start with low-impact workouts & consult a doctor.'; pct=95; }
+      wizard.bmiCat = cat;
+
+      document.getElementById('wBmiScore').textContent = bmi;
+      document.getElementById('wBmiCat').textContent = cat;
+      document.getElementById('wBmiCat').style.color = color;
+      document.getElementById('wBmiBar').style.width = pct+'%';
+      document.getElementById('wBmiBar').style.background = color;
+      document.getElementById('wBmiTip').textContent = tip;
+      document.getElementById('wBmiResult').classList.remove('hidden');
+
+      // Also update sidebar BMI result display
+      document.getElementById('bmiScore').textContent = bmi;
+      document.getElementById('bmiCategory').textContent = cat;
+      document.getElementById('bmiCategory').style.color = color;
+      document.getElementById('bmiBar').style.width = pct + '%';
+      document.getElementById('bmiBar').style.background = color;
+      document.getElementById('bmiTip').textContent = tip;
+      document.getElementById('bmiResult').classList.remove('hidden');
+
+      const btn = document.getElementById('wBmiNextBtn');
+      btn.disabled = false;
+      btn.classList.remove('opacity-50','cursor-not-allowed');
+    }
+
+    function wGeneratePlan() {
+      if (!wizard.goal || !wizard.level) { alert('Please select a goal and fitness level.'); return; }
+      showWStep(4);
+      const msgs = [
+        'Analyzing your BMI & body composition...',
+        'Designing a 7-day ' + wizard.goal + ' program...',
+        'Scheduling rest & recovery days for ' + wizard.level + '...',
+        'Adding daily health tips & nutrition advice...',
+        'Finalizing your personalized AI weekly plan...'
+      ];
+      let i = 0;
+      document.getElementById('wGenerating').classList.remove('hidden');
+      document.getElementById('wPlanOutput').classList.add('hidden');
+      const iv = setInterval(() => {
+        if (i < msgs.length) { document.getElementById('wGenMsg').textContent = msgs[i++]; }
+        else {
+          clearInterval(iv);
+          document.getElementById('wGenerating').classList.add('hidden');
+          renderWPlan();
+        }
+      }, 800);
+    }
+
+    const PLAN_DB = {
+      'Fat Loss': [
+        { name:'Burpees',       sets:'4', reps:'15',  rest:'45s', cal:12, icon:'🔥', backendKey:'squat' },
+        { name:'Squat Jumps',   sets:'4', reps:'20',  rest:'30s', cal:10, icon:'🦵', backendKey:'squat' },
+        { name:'Mountain Climbers', sets:'3', reps:'30s', rest:'20s', cal:9, icon:'🏔️', backendKey:'lunge' },
+        { name:'Lunges',        sets:'3', reps:'12 each', rest:'40s', cal:8, icon:'🚶', backendKey:'lunge' },
+        { name:'Plank',         sets:'3', reps:'45s', rest:'30s', cal:5, icon:'🧱', backendKey:'plank' },
+      ],
+      'Muscle Gain': [
+        { name:'Push-Ups',      sets:'5', reps:'12',  rest:'90s', cal:7, icon:'💪', backendKey:'pushup' },
+        { name:'Squats',        sets:'5', reps:'10',  rest:'90s', cal:9, icon:'🏋️', backendKey:'squat' },
+        { name:'Tricep Dips',   sets:'4', reps:'12',  rest:'75s', cal:6, icon:'💎', backendKey:'pushup' },
+        { name:'Shoulder Press',sets:'4', reps:'10',  rest:'90s', cal:7, icon:'🔺', backendKey:'pushup' },
+        { name:'Deadlift',      sets:'4', reps:'8',   rest:'120s',cal:10, icon:'🏗️', backendKey:'squat' },
+      ],
+      'Endurance': [
+        { name:'Jumping Jacks', sets:'4', reps:'40',  rest:'20s', cal:8, icon:'⭐', backendKey:'jumping_jack' },
+        { name:'High Knees',    sets:'4', reps:'30s', rest:'15s', cal:9, icon:'🦵', backendKey:'jumping_jack' },
+        { name:'Box Steps',     sets:'3', reps:'1min',rest:'30s', cal:7, icon:'📦', backendKey:'squat' },
+        { name:'Bicycle Crunch',sets:'3', reps:'25',  rest:'20s', cal:5, icon:'🚴', backendKey:'plank' },
+        { name:'Jogging in Place',sets:'3',reps:'90s',rest:'30s',cal:10,icon:'🏃', backendKey:'jumping_jack' },
+      ],
+      'Flexibility': [
+        { name:'Hip Flexor Stretch',sets:'3', reps:'30s',rest:'15s',cal:2,icon:'🧘', backendKey:'lunge' },
+        { name:'Cat-Cow Stretch',   sets:'3', reps:'12', rest:'10s',cal:2,icon:'🐱', backendKey:'plank' },
+        { name:"World's Greatest Stretch",sets:'3',reps:'8 each',rest:'20s',cal:3,icon:'🌍', backendKey:'lunge' },
+        { name:'Pigeon Pose',       sets:'2', reps:'45s',rest:'10s',cal:2,icon:'🕊️', backendKey:'lunge' },
+        { name:'Thoracic Rotation', sets:'3', reps:'10 each',rest:'15s',cal:2,icon:'🔄', backendKey:'plank' },
+      ]
+    };
+
+    const LEVEL_MULT = { Beginner: 0.7, Intermediate: 1.0, Advanced: 1.35 };
+    const AI_TIPS = {
+      'Fat Loss':    'Prioritize compound movements and keep rest periods short. Pair with a 300-500 kcal deficit diet. Research shows HIIT burns up to 30% more fat post-workout (ACSM, 2022).',
+      'Muscle Gain': 'Progressive overload is key — increase weight/reps every 2 weeks. Consume 1.6–2.2g protein/kg bodyweight. Compound lifts activate most muscle fibers simultaneously.',
+      'Endurance':   'Zone 2 cardio (60-70% max HR) builds your aerobic base. Increase workout duration by no more than 10% per week to avoid overtraining. Stay consistently hydrated.',
+      'Flexibility': 'Hold each stretch 30-60 seconds and breathe deeply. Best done after exercise when muscles are warm. Consistency matters more than intensity — daily 15min beats weekly 2hr sessions.'
+    };
+
+    /* ============================================================
+       WEEKLY PLAN DATA
+    ============================================================ */
+    const WEEKLY_STRUCTURE = {
+      Beginner: [
+        { type:'workout', label:'Mon' }, { type:'workout', label:'Tue' },
+        { type:'rest',    label:'Wed' }, { type:'workout', label:'Thu' },
+        { type:'workout', label:'Fri' }, { type:'active',  label:'Sat' },
+        { type:'rest',    label:'Sun' }
+      ],
+      Intermediate: [
+        { type:'workout', label:'Mon' }, { type:'workout', label:'Tue' },
+        { type:'active',  label:'Wed' }, { type:'workout', label:'Thu' },
+        { type:'workout', label:'Fri' }, { type:'workout', label:'Sat' },
+        { type:'rest',    label:'Sun' }
+      ],
+      Advanced: [
+        { type:'workout', label:'Mon' }, { type:'workout', label:'Tue' },
+        { type:'workout', label:'Wed' }, { type:'rest',    label:'Thu' },
+        { type:'workout', label:'Fri' }, { type:'workout', label:'Sat' },
+        { type:'workout', label:'Sun' }
+      ]
+    };
+
+    const HEALTH_TIPS = [
+      'Drink at least 2.5L of water today. Dehydration reduces strength by up to 20%.',
+      'Eat a protein-rich breakfast within 1 hour of waking to jumpstart muscle synthesis.',
+      'Take a 10-minute walk after meals to improve insulin sensitivity and energy levels.',
+      'Sleep 7-9 hours tonight. Growth hormone peaks during deep sleep — crucial for recovery.',
+      'Add leafy greens to your next meal. Magnesium in spinach reduces muscle cramps.',
+      'Do 5 minutes of deep breathing before your workout to lower cortisol and improve focus.',
+      'Rest is training too. Muscles grow during recovery, not during the workout itself.'
+    ];
+
+    const REST_TIPS = [
+      '🧘 Active recovery day: 20-min walk or light yoga to flush lactic acid.',
+      '🛁 Try contrast showers (hot/cold) to boost circulation and reduce soreness.',
+      '📵 Screen detox before bed — blue light disrupts melatonin and sleep quality.',
+      '🥗 Focus on anti-inflammatory foods today: berries, turmeric, omega-3 rich fish.',
+      '💆 Foam roll your legs and back for 10 minutes to prevent next-day soreness.',
+      '🌊 Light swimming or cycling keeps blood flowing without stressing joints.',
+      '📖 Visualize tomorrow\'s workout to build neural pathways and motivation.'
+    ];
+
+    // Stores the active weekly plan globally
+    window._weeklyPlan = null;
+    let _activeDay = 0;
+
+    function renderWPlan() {
+      const goal  = wizard.goal;
+      const level = wizard.level;
+      const mult  = LEVEL_MULT[level] || 1;
+      const baseExercises = PLAN_DB[goal] || PLAN_DB['Fat Loss'];
+      const dayStructure  = WEEKLY_STRUCTURE[level] || WEEKLY_STRUCTURE['Beginner'];
+
+      // Build a 7-day plan object
+      const weekPlan = dayStructure.map((day, idx) => {
+        if (day.type === 'workout') {
+          // rotate exercises across workout days so each day feels different
+          const workoutDays = dayStructure.filter(d => d.type === 'workout').length;
+          const exShift = Math.floor(idx / 7 * baseExercises.length);
+          const exercises = baseExercises.map((ex, ei) => ({
+            ...ex,
+            sets: Math.round(parseInt(ex.sets) * mult),
+          }));
+          return { ...day, dayNum: idx, exercises, healthTip: HEALTH_TIPS[idx] };
+        } else {
+          return { ...day, dayNum: idx, exercises: null, healthTip: REST_TIPS[idx] };
+        }
+      });
+
+      window._weeklyPlan = { goal, level, weekPlan, mult, baseExercises };
+
+      // Subtitle
+      document.getElementById('wPlanSubtitle').textContent =
+        `${wizard.name || 'Your'} 7-day ${goal} plan • ${level} • BMI ${wizard.bmi || 'N/A'}`;
+      document.getElementById('wAiTip').textContent = AI_TIPS[goal];
+
+      // Render day tabs
+      const tabsEl = document.getElementById('wDayTabs');
+      tabsEl.innerHTML = weekPlan.map((d, i) => {
+        const isToday = (i === new Date().getDay() - 1 + 7) % 7 === i && i < 7;
+        const color = d.type === 'rest' ? 'bg-slate-600 text-slate-300' :
+                      d.type === 'active' ? 'bg-yellow-600 text-white' :
+                      'bg-sky-600 text-white';
+        return `<button onclick="showWeekDay(${i})" id="wDayTab${i}" class="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${color} opacity-70 hover:opacity-100">${d.label}</button>`;
+      }).join('');
+
+      // Show today's day
+      const todayIdx = (new Date().getDay() + 6) % 7; // Mon=0
+      _activeDay = todayIdx < 7 ? todayIdx : 0;
+      showWeekDay(_activeDay);
+
+      document.getElementById('wPlanOutput').classList.remove('hidden');
+    }
+
+    function showWeekDay(idx) {
+      if (!window._weeklyPlan) return;
+      _activeDay = idx;
+      const { weekPlan, mult } = window._weeklyPlan;
+      const day = weekPlan[idx];
+      const contentEl = document.getElementById('wDayContent');
+      const healthEl  = document.getElementById('wHealthTip');
+
+      // Highlight active tab
+      weekPlan.forEach((_, i) => {
+        const tab = document.getElementById('wDayTab'+i);
+        if (tab) tab.style.opacity = i === idx ? '1' : '0.6';
+      });
+
+      healthEl.textContent = day.healthTip;
+
+      if (day.type !== 'workout') {
+        const emoji = day.type === 'rest' ? '😴' : '🚶';
+        const label = day.type === 'rest' ? 'Rest Day' : 'Active Recovery';
+        contentEl.innerHTML = `
+          <div class="text-center py-6">
+            <div class="text-5xl mb-3">${emoji}</div>
+            <p class="font-bold text-white text-lg">${label}</p>
+            <p class="text-slate-400 text-xs mt-2">${day.healthTip}</p>
+          </div>`;
+        return;
+      }
+
+      let html = `<p class="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">${day.label} — Full Workout</p>`;
+      day.exercises.forEach(ex => {
+        const calStr = Math.round(ex.cal * mult) + ' kcal';
+        html += `<div onclick="launchPlanExercise('${ex.backendKey}','${ex.name}')" class="flex items-center gap-2 p-2 bg-slate-800/60 rounded-xl border border-slate-700 hover:border-pink-500 cursor-pointer group transition-all">
+          <span class="text-lg flex-shrink-0">${ex.icon}</span>
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold text-white text-xs truncate">${ex.name}</p>
+            <p class="text-xs text-slate-400">${ex.sets} sets × ${ex.reps} • Rest ${ex.rest}</p>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <p class="text-xs font-bold text-orange-400">${calStr}</p>
+            <i class="fas fa-play-circle text-pink-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity"></i>
+          </div>
+        </div>`;
+      });
+      contentEl.innerHTML = html;
+    }
+
+    /* ────────────────────────────────────────────────────────────
+       downloadPlanPDF — generates a full 7-day plan PDF
+    ──────────────────────────────────────────────────────────── */
+    function downloadPlanPDF() {
+      if (!window._weeklyPlan) { alert('Generate your plan first.'); return; }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const { goal, level, weekPlan, mult } = window._weeklyPlan;
+
+      // ── Header ──
+      doc.setFillColor(15, 23, 42); doc.rect(0, 0, 210, 40, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(22); doc.setFont('helvetica','bold');
+      doc.text('AI Gym — 7-Day Personalized Plan', 14, 18);
+      doc.setFontSize(11); doc.setFont('helvetica','normal');
+      doc.setTextColor(148,163,184);
+      doc.text(`${wizard.name || 'Athlete'} • ${goal} • ${level} • BMI ${wizard.bmi || 'N/A'} • Generated ${new Date().toLocaleDateString()}`, 14, 28);
+
+      let y = 50;
+      const pageH = 297;
+      const dayColors = { workout:[14,165,233], active:[234,179,8], rest:[100,116,139] };
+
+      weekPlan.forEach((day, di) => {
+        if (y > pageH - 30) { doc.addPage(); y = 15; }
+
+        // Day header bar
+        const col = dayColors[day.type] || dayColors.rest;
+        doc.setFillColor(...col); doc.rect(14, y-5, 182, 10, 'F');
+        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+        const typeLabel = day.type === 'rest' ? 'REST DAY' : day.type === 'active' ? 'ACTIVE RECOVERY' : 'WORKOUT';
+        doc.text(`${['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][di]} — ${typeLabel}`, 16, y+2);
+        y += 10;
+
+        if (day.type !== 'workout') {
+          doc.setTextColor(100,116,139); doc.setFont('helvetica','italic'); doc.setFontSize(9);
+          doc.text(day.healthTip, 16, y+4, { maxWidth: 178 });
+          y += 14;
+          return;
+        }
+
+        // Exercises table header
+        doc.setFillColor(30,41,59); doc.rect(14, y, 182, 7, 'F');
+        doc.setTextColor(148,163,184); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+        doc.text('Exercise', 16, y+5); doc.text('Sets', 100, y+5); doc.text('Reps', 120, y+5); doc.text('Rest', 145, y+5); doc.text('~kcal', 168, y+5);
+        y += 9;
+
+        day.exercises.forEach((ex, ei) => {
+          if (y > pageH - 20) { doc.addPage(); y = 15; }
+          doc.setFillColor(ei % 2 === 0 ? 22:30, ei%2===0?30:41, ei%2===0?46:59);
+          doc.rect(14, y-1, 182, 7, 'F');
+          doc.setTextColor(255,255,255); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+          doc.text(ex.name, 16, y+4);
+          doc.text(String(ex.sets), 100, y+4);
+          doc.text(String(ex.reps), 120, y+4);
+          doc.text(ex.rest, 145, y+4);
+          doc.text(Math.round(ex.cal * mult) + ' kcal', 168, y+4);
+          y += 7;
+        });
+
+        // Health tip for the day
+        doc.setTextColor(234,179,8); doc.setFont('helvetica','italic'); doc.setFontSize(8);
+        doc.text('\u2665 ' + day.healthTip, 16, y+5, { maxWidth:178 });
+        y += 14;
+      });
+
+      // Footer
+      doc.setPage(1);
+      doc.setFontSize(8); doc.setTextColor(100,116,139);
+      doc.text('Generated by AI Gym Posture Assistant • Personalized by AI', 14, 292);
+
+      doc.save(`AI_Gym_${wizard.name || 'Plan'}_${goal}_Weekly.pdf`);
+      showMessage('PDF downloaded!');
+    }
+
+    /* ────────────────────────────────────────────────────────────
+       startDetectionFromPlan — applies plan, scrolls to camera,
+       loads today's schedule, auto-selects first exercise, starts AI
+    ──────────────────────────────────────────────────────────── */
+    function startDetectionFromPlan() {
+      if (!window._weeklyPlan) return;
+
+      // 1. Apply plan to sidebar + update greeting
+      applyPlanToSidebar();
+
+      // 2. Close wizard
+      closePlanWizard();
+
+      // 3. Scroll to camera section
+      const cam = document.getElementById('cameraSection');
+      if (cam) cam.scrollIntoView({ behavior:'smooth', block:'start' });
+
+      // 4. Load today's schedule into the camera-side widget
+      const { weekPlan, goal, level } = window._weeklyPlan;
+      const todayIdx = (new Date().getDay() + 6) % 7; // Mon=0
+      const today = weekPlan[todayIdx] || weekPlan[0];
+      const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+      const widget = document.getElementById('planScheduleWidget');
+      document.getElementById('scheduleDay').textContent = `${days[todayIdx]} • ${today.type === 'workout' ? goal : today.type === 'active' ? 'Recovery' : 'Rest'}`;
+      document.getElementById('scheduleHealthTip').textContent = '\u2665 ' + today.healthTip;
+
+      if (today.type === 'workout' && today.exercises) {
+        const listEl = document.getElementById('scheduleExerciseList');
+        listEl.innerHTML = today.exercises.map((ex, i) =>
+          `<button onclick="launchPlanExercise('${ex.backendKey}','${ex.name}')" class="flex-shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-xl bg-slate-800 hover:bg-pink-500/20 border border-slate-700 hover:border-pink-500 transition-all cursor-pointer text-center min-w-[70px]">
+            <span class="text-lg">${ex.icon}</span>
+            <span class="text-white text-xs font-semibold leading-tight">${ex.name}</span>
+            <span class="text-slate-400 text-xs">${ex.sets}×${ex.reps}</span>
+          </button>`
+        ).join('');
+
+        // Auto-select the first exercise
+        if (today.exercises.length > 0) {
+          launchPlanExercise(today.exercises[0].backendKey, today.exercises[0].name);
+        }
+      } else {
+        document.getElementById('scheduleExerciseList').innerHTML =
+          `<p class="text-slate-400 text-sm py-2">${today.type === 'rest' ? '😴 Rest day — no exercises scheduled.' : '🚶 Light activity only today.'}</p>`;
+      }
+      widget.classList.remove('hidden');
+
+      // 5. Auto-start backend detection after short delay
+      setTimeout(() => {
+        if (!backendRunning) {
+          showMessage('Starting AI Detection for your plan...');
+          startBackend();
+        }
+      }, 800);
+    }
+
+    /* ────────────────────────────────────────────────────────────
+       launchPlanExercise — switches the exercise selector and
+       optionally starts the backend if not already running.
+    ──────────────────────────────────────────────────────────── */
+    function launchPlanExercise(backendKey, displayName) {
+      // 1. Switch the exercise selector
+      const sel = document.getElementById('exerciseSelect');
+      if (sel) {
+        // Find matching option; fallback to squat
+        const option = Array.from(sel.options).find(o => o.value === backendKey);
+        if (option) sel.value = backendKey;
+        showExerciseDetails();
+      }
+
+      // 2. Tell the backend which exercise to track (if running)
+      if (backendRunning) {
+        fetch(`${API}/set-exercise`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exercise: backendKey })
+        }).catch(() => {}); // graceful fail if endpoint doesn't exist yet
+      }
+
+      // 3. Close wizard and show message
+      closePlanWizard();
+      showMessage(`Exercise set: ${displayName} — ${backendRunning ? 'AI is tracking!' : 'Press Start AI Detection to begin.'}`);
+
+      // 4. Voice coach announcement
+      if (voiceCoachEnabled) {
+        speak(`Starting ${displayName}. Get into position!`);
+      }
+    }
+
+    /* ────────────────────────────────────────────────────────────
+       applyPlanToSidebar — saves plan to sidebar panel,
+       updates header greeting, voice coach, injury risk.
+    ──────────────────────────────────────────────────────────── */
+    function applyPlanToSidebar() {
+      if (!window._lastPlan) return;
+      const { goal, level, exercises, mult } = window._lastPlan;
+
+      // ── Build clickable plan list in sidebar ──
+      let html = `<div class="mb-3 pb-2 border-b border-slate-700">
+        <p class="font-bold text-white text-sm">${goal} — ${level}</p>
+        <p class="text-xs text-slate-400">BMI: ${wizard.bmi || 'N/A'} · ${wizard.name || 'Athlete'} · ${wizard.age ? wizard.age + ' yrs' : ''}</p>
+      </div>`;
+      exercises.forEach(ex => {
+        const sets = Math.round(parseInt(ex.sets) * mult);
+        html += `<div onclick="launchPlanExercise('${ex.backendKey}','${ex.name}')" class="flex justify-between items-center py-1.5 border-b border-slate-700/50 text-xs cursor-pointer hover:bg-white/5 rounded px-1 transition-all group">
+          <span class="text-white">${ex.icon} ${ex.name}</span>
+          <span class="text-slate-400 group-hover:text-pink-400 transition-colors">${sets}×${ex.reps} <i class="fas fa-play ml-1 opacity-0 group-hover:opacity-100"></i></span>
+        </div>`;
+      });
+      html += `<p class="text-xs text-slate-500 mt-2 text-center">Tap any exercise to switch tracking</p>`;
+
+      const panel = document.getElementById('workoutPlanResult');
+      panel.innerHTML = html;
+      panel.classList.remove('hidden');
+
+      // ── Integration: update header greeting ──
+      const greeting = document.getElementById('userGreeting');
+      document.getElementById('greetName').textContent = `Hey, ${wizard.name}!`;
+      document.getElementById('greetBmi').textContent = `BMI ${wizard.bmi} (${wizard.bmiCat})`;
+      document.getElementById('greetGoal').textContent = goal;
+      document.getElementById('greetLevel').textContent = level;
+      greeting.classList.remove('hidden');
+
+      // ── Integration: voice coach welcome ──
+      if (voiceCoachEnabled) {
+        speak(`Welcome ${wizard.name}! Your ${goal} plan is ready. ${exercises.length} exercises loaded.`);
+      } else {
+        showMessage(`Plan applied! ${exercises.length} exercises ready for ${wizard.name}.`);
+      }
+
+      // ── Integration: auto-set first exercise in selector ──
+      if (exercises.length > 0) {
+        const first = exercises[0];
+        const sel = document.getElementById('exerciseSelect');
+        if (sel) {
+          const option = Array.from(sel.options).find(o => o.value === first.backendKey);
+          if (option) { sel.value = first.backendKey; showExerciseDetails(); }
+        }
+      }
+
+      closePlanWizard();
+    }
+  </script>
+
+  <style>
+    #planWizardOverlay input { font-family: inherit; }
+    @keyframes wizardSpin { to { transform: rotate(360deg); } }
+    #wGenerating .animate-spin { display: inline-block; animation: wizardSpin 1.5s linear infinite; }
+  </style>
+</body>
+</html>

@@ -4,3 +4,7 @@ python-multipart
 opencv-python-headless
 mediapipe
 numpy
+firebase-admin
+websockets
+python-dotenv
+pydantic

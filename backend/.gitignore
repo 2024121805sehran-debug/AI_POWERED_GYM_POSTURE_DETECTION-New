@@ -2,6 +2,12 @@ venv/
 __pycache__/
 *.pyc
 serviceAccountKey.json
+serviceAccountKey.json.placeholder
+.env
+.env.local
+.env.*.local
 STOP_BACKEND.txt
 *.log
 .DS_Store
+ai_training/dataset.csv
+*.csv

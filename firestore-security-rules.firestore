@@ -1,0 +1,74 @@
+// Firestore Security Rules for AI Gym Posture Detection
+// These rules should be configured in Firebase Console > Firestore Database > Rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Helper function to check if user is owner of resource
+    function isResourceOwner(resourceId) {
+      return isSignedIn() && request.auth.uid == resourceId;
+    }
+
+    // ==================== PUBLIC COLLECTIONS (for development) ====================
+    // These rules allow public access for development (legacy collections)
+    // TODO: Remove these collections after migration to user-specific structure
+
+    match /postureLogs/{document} {
+      allow read, write: if true; // TEMPORARY: Allow public access during development
+    }
+
+    match /postureHistory/{document} {
+      allow read, write: if true; // TEMPORARY: Allow public access during development
+    }
+
+    match /sessions/{document} {
+      allow read, write: if true; // TEMPORARY: Allow public access during development
+    }
+
+    // ==================== USER-SPECIFIC COLLECTIONS (authentication required) ====================
+    // These rules require authentication and enforce user ownership
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isOwner(userId) || request.auth != null; // Users can read their own profile
+      allow write: if isOwner(userId); // Only owner can write their profile
+    }
+
+    // User sessions
+    match /users/{userId}/sessions/{sessionId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // User posture history
+    match /users/{userId}/postureHistory/{eventId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // User preferences
+    match /users/{userId}/preferences/{preferenceId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // User goals
+    match /users/{userId}/goals/{goalId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // User achievements
+    match /users/{userId}/achievements/{achievementId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Achievements are system-generated
+    }
+  }
+}

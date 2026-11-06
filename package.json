@@ -1,0 +1,28 @@
+{
+  "name": "ai-gym-posture-detection",
+  "version": "2.0.0",
+  "description": "Real-Time Exercise Posture Detection and Injury Risk Reduction Using Computer Vision - Sharda University PBL-2",
+  "scripts": {
+    "start": "node start.js",
+    "start:win": "start-all.bat",
+    "backend": "cd backend && venv\\Scripts\\activate && uvicorn main:app --host 0.0.0.0 --port 8000",
+    "frontend": "cd frontend && npm start",
+    "install:all": "cd frontend && npm install && cd ../backend && pip install -r requirements.txt",
+    "test": "echo \"Tests not configured\" && exit 0"
+  },
+  "keywords": [
+    "computer-vision",
+    "pose-estimation",
+    "fitness",
+    "posture-detection",
+    "mediapipe",
+    "react",
+    "fastapi"
+  ],
+  "author": "Team 4 - Vansh Bhardwaj, Sehran Fayaz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/ai-gym-posture-detection"
+  }
+}

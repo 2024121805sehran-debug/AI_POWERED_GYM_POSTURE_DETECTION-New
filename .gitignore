@@ -1,0 +1,67 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Firebase credentials
+serviceAccountKey.json
+**/serviceAccountKey.json
+serviceAccountKey.json.placeholder
+**/serviceAccountKey.json.placeholder
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+server.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+
+# React
+/frontend/build/
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+
+# Backend venv
+/backend/venv/
+/backend/venv-bundle/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+nul
+.vercel/
+
+# Large datasets (>100MB exceeds GitHub limits)
+backend/ai_training/dataset.csv
+*.csv
