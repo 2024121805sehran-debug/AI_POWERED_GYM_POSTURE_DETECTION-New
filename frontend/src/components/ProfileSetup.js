@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { doc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { db, auth } from "../firebase/config";
 import { updateProfile } from "firebase/auth";
 import {
@@ -15,7 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { calculateBMI } from "../data/workoutStorage";
-import { GlassCard, GlassButton, SectionHeader } from "./ui/GlassComponents";
+import { GlassCard, GlassButton } from "./ui/GlassComponents";
 
 export const FITNESS_LEVELS = ["Beginner", "Intermediate", "Advanced"];
 

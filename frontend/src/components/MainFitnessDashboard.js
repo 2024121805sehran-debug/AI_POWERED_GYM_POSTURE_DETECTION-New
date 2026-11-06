@@ -7,13 +7,9 @@ import {
   Zap,
   Activity,
   ChevronRight,
-  TrendingUp,
   History,
-  User,
   Sparkles,
-  CheckCircle2,
   Clock,
-  Compass,
   ShieldAlert,
 } from "lucide-react";
 import {
@@ -39,7 +35,7 @@ export default function MainFitnessDashboard({
   onOpenPlanner,
 }) {
   const [workouts, setWorkouts] = useState([]);
-  const [loadingWorkouts, setLoadingWorkouts] = useState(true);
+  const [, setLoadingWorkouts] = useState(true);
   const [goals, setGoals] = useState(null);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);

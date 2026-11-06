@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, Play, Square, CheckCircle, XCircle, Activity, Clock, Wind, Volume2, VolumeX, SkipForward } from "lucide-react";
+import { ArrowLeft, Play, Square, CheckCircle, XCircle, Activity, Clock, Wind, SkipForward } from "lucide-react";
 import MediaPipePoseOverlay from "./MediaPipePoseOverlay";
 
 export default function FullScreenCamera({ user, selectedExercise, onExit, onComplete }) {
@@ -26,7 +26,7 @@ export default function FullScreenCamera({ user, selectedExercise, onExit, onCom
     wrongReps: 0,
     injuryAlerts: 0,
   });
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled] = useState(true);
   const [showSummary, setShowSummary] = useState(false);
 
   // MediaPipe state
@@ -76,16 +76,6 @@ export default function FullScreenCamera({ user, selectedExercise, onExit, onCom
   const completeWorkout = async () => {
     stopBackend();
     setShowSummary(true);
-  };
-
-  const toggleVoice = async () => {
-    const newState = !voiceEnabled;
-    setVoiceEnabled(newState);
-    try {
-      await fetch(`${API}/toggle-voice-coach?enabled=${newState}`, { method: "POST" });
-    } catch {
-      console.error("Failed to toggle voice");
-    }
   };
 
   const skipRest = async () => {

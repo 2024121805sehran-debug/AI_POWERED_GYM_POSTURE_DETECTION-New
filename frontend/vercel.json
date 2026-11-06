@@ -1,4 +1,13 @@
 {
+  "framework": "create-react-app",
+  "env": {
+    "CI": "false"
+  },
+  "build": {
+    "env": {
+      "CI": "false"
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
@@ -6,3 +15,4 @@
     }
   ]
 }
+

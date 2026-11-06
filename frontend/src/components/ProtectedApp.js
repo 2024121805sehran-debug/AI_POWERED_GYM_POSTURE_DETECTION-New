@@ -7,13 +7,11 @@ import RegisterPage from "./RegisterPage";
 import ProfileSetup from "./ProfileSetup";
 import UserMenu from "./UserMenu";
 import MainFitnessDashboard from "./MainFitnessDashboard";
-import GymDashboard from "./GymDashboard";
 import ExerciseLibrary from "./ExerciseLibrary";
 import ExerciseDetails from "./ExerciseDetails";
 import GoalsModal from "./GoalsModal";
 import WorkoutHistoryModal from "./WorkoutHistoryModal";
 import ProgressDashboard from "./ProgressDashboard";
-import WorkoutPlanner from "./WorkoutPlanner";
 import WorkoutTemplates from "./WorkoutTemplates";
 import AdaptiveRecommendations from "./AdaptiveRecommendations";
 import BottomNavigation from "./ui/BottomNavigation";
@@ -21,19 +19,10 @@ import FullScreenCamera from "./FullScreenCamera";
 import {
   Loader2,
   Dumbbell,
-  Home,
-  Video,
   User,
   ArrowLeft,
-  Sparkles,
-  Target,
-  History,
-  BarChart2,
-  Trophy,
-  Calendar,
 } from "lucide-react";
 import {
-  getUserGoals,
   saveUserGoals,
   getWorkoutSessions,
 } from "../data/workoutStorage";
@@ -205,10 +194,6 @@ export default function ProtectedApp() {
   const handleExerciseClick = (exercise) => {
     setSelectedExercise(exercise);
     setCurrentView("details");
-  };
-
-  const handleBackToLibrary = () => {
-    setCurrentView("library");
   };
 
   // Loading Screen

@@ -3,12 +3,10 @@ import { auth } from "../firebase/config";
 import { signOut } from "firebase/auth";
 import {
   User,
-  Settings,
   LogOut,
   ChevronDown,
   History,
   Target,
-  Sparkles,
 } from "lucide-react";
 
 export default function UserMenu({

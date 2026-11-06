@@ -16,7 +16,7 @@ import {
   EQUIPMENT_TYPES,
   EXERCISE_TYPES,
 } from "../data/exercises";
-import { GlassCard, GlassButton, SectionHeader } from "./ui/GlassComponents";
+import { GlassCard, GlassButton } from "./ui/GlassComponents";
 
 export default function ExerciseLibrary({ onSelectExercise, onShowDetails }) {
   const [searchQuery, setSearchQuery] = useState("");

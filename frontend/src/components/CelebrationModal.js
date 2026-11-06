@@ -13,6 +13,12 @@ export default function CelebrationModal({
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
+  const handleClose = useCallback(() => {
+    setIsVisible(false);
+    setIsAnimating(false);
+    setTimeout(() => onClose(), 300);
+  }, [onClose]);
+
   useEffect(() => {
     if (isOpen) {
       setIsVisible(true);
@@ -29,12 +35,6 @@ export default function CelebrationModal({
       setIsAnimating(false);
     }
   }, [isOpen, duration, handleClose]);
-
-  const handleClose = useCallback(() => {
-    setIsVisible(false);
-    setIsAnimating(false);
-    setTimeout(() => onClose(), 300);
-  }, [onClose]);
 
   if (!isVisible) return null;
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Trophy, Target, Flame, Award, ChevronRight, Activity, TrendingUp } from "lucide-react";
+import { Trophy, Target, Flame, Award, ChevronRight } from "lucide-react";
 import {
   calculateUserStats,
   checkAchievements,
