@@ -10,6 +10,7 @@ import {
   Wind,
   ShieldAlert,
   ExternalLink,
+  ChevronRight,
 } from "lucide-react";
 import { getExerciseById, getYoutubeEmbedUrl } from "../data/exercises";
 import { GlassCard, GlassButton, SectionHeader } from "./ui/GlassComponents";

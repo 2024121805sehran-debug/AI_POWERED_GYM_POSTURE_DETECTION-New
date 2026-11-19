@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
+  doc,
   onSnapshot,
+  setDoc,
+  serverTimestamp,
   collection,
+  addDoc,
   query,
   orderBy,
   limit,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { saveWorkoutSession } from "../data/workoutStorage";
 import {
   calculateUserStats,
+  checkAchievements,
   getNewAchievements,
   saveAchievements,
   loadAchievements,
@@ -29,6 +35,7 @@ import {
   Dumbbell,
   Video,
   Wifi,
+  WifiOff,
   ChevronUp,
   Clock,
   Wind,
@@ -40,10 +47,18 @@ import {
   SkipForward,
   Target,
   Zap,
+  XCircle,
+  ArrowLeft,
+  VolumeX,
 } from "lucide-react";
 import CelebrationModal from "./CelebrationModal";
 import WorkoutSummaryModal from "./WorkoutSummaryModal";
 import MediaPipePoseOverlay from "./MediaPipePoseOverlay";
+
+// Utility for class names
+function cn(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
 
 function GymDashboard({ user, userProfile, userMenu, selectedExercise, onClearExercise, onWorkoutComplete, onExit }) {
   // ---------- State ----------
@@ -69,10 +84,10 @@ function GymDashboard({ user, userProfile, userMenu, selectedExercise, onClearEx
   });
   const [backendRunning, setBackendRunning] = useState(false);
   const [backendMsg, setBackendMsg] = useState("");
-  const [, setSessionId] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
   const [wsConnected, setWsConnected] = useState(false);
   const [history, setHistory] = useState([]);
-  const [, setSessions] = useState([]);
+  const [sessions, setSessions] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showWorkoutSummary, setShowWorkoutSummary] = useState(false);
   const [workoutSummary, setWorkoutSummary] = useState(null);
@@ -130,6 +145,7 @@ function GymDashboard({ user, userProfile, userMenu, selectedExercise, onClearEx
   }, [selectedExercise]);
 
   // ---------- Refs ----------
+  const lastLoggedStatusRef = useRef("");
   const sessionStartTimeRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const wsRef = useRef(null);
@@ -425,6 +441,14 @@ function GymDashboard({ user, userProfile, userMenu, selectedExercise, onClearEx
       wsRef.current = null;
     }
     setWsConnected(false);
+  };
+
+  const toggleLive = () => {
+    if (wsConnected) {
+      disconnectWebSocket();
+    } else {
+      connectWebSocket();
+    }
   };
 
   // ---------- Firestore (User-Specific) ----------

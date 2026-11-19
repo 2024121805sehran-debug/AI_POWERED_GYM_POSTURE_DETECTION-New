@@ -2687,8 +2687,7 @@ def worker_loop():
                     annotated_frame,
                     results.pose_landmarks,
                     mp.solutions.pose.POSE_CONNECTIONS,
-                    landmark_drawing_spec=mp.solutions.drawing_styles.get_default_pose_landmarks_style(),
-                    connection_drawing_spec=mp.solutions.drawing_styles.get_default_pose_connections_style()
+                    landmark_drawing_spec=mp.solutions.drawing_styles.get_default_pose_landmarks_style()
                 )
 
             # Encode and store clean frame FIRST (for streaming)

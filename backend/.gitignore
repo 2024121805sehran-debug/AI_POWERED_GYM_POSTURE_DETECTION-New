@@ -9,5 +9,3 @@ serviceAccountKey.json.placeholder
 STOP_BACKEND.txt
 *.log
 .DS_Store
-ai_training/dataset.csv
-*.csv

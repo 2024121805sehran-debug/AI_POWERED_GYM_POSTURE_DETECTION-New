@@ -3,6 +3,7 @@ import {
   Target,
   Trophy,
   Dumbbell,
+  CheckCircle2,
   Calendar,
   Zap,
   X,

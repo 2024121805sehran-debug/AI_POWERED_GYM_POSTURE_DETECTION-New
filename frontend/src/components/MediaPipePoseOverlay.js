@@ -312,6 +312,7 @@ export default function MediaPipePoseOverlay({ exerciseName = "", onStatusChange
 
   const [poseLoaded, setPoseLoaded] = useState(false);
   const [camError,   setCamError]   = useState(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [status,     setStatus]     = useState("detecting");
   const [issue,      setIssue]      = useState("Loading MediaPipe…");
   const [fps,        setFps]        = useState(0);
@@ -383,8 +384,17 @@ export default function MediaPipePoseOverlay({ exerciseName = "", onStatusChange
           stream.getTracks().forEach(track => track.stop());
         } catch (err) {
           if (!cancelled) {
-            setCamError("Camera permission denied. Please allow camera access and refresh.");
-            setIssue("Camera access required");
+            console.warn("Camera probe error:", err);
+            let friendlyMsg = "Camera permission was blocked. Click the camera/lock icon in your browser's address bar to allow camera access.";
+            if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+              friendlyMsg = "Camera permission was blocked. Click the camera icon (top-left of URL bar) to allow access, then click 'Retry'.";
+            } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+              friendlyMsg = "Webcam is currently locked or in use by another app (e.g. Teams, Zoom, or another browser window). Please close it and click 'Retry'.";
+            } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+              friendlyMsg = "No webcam detected on your PC. Please plug in or enable your camera and click 'Retry'.";
+            }
+            setCamError(friendlyMsg);
+            setIssue("Camera permission required");
           }
           return;
         }
@@ -476,7 +486,7 @@ export default function MediaPipePoseOverlay({ exerciseName = "", onStatusChange
       poseRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  }, [active, retryNonce]);
 
   const borderColor =
     status === "correct" ? "#22c55e" :
@@ -513,13 +523,38 @@ export default function MediaPipePoseOverlay({ exerciseName = "", onStatusChange
         <div style={{
           position: "absolute", inset: 0, display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
-          background: "rgba(15,23,42,0.92)", color: "#f87171", gap: "8px",
-          padding: "24px", textAlign: "center", zIndex: 10,
+          background: "rgba(15,23,42,0.92)", color: "#f87171", gap: "12px",
+          padding: "24px", textAlign: "center", zIndex: 30,
         }}>
-          <span style={{ fontSize: "32px" }}>📷</span>
-          <p style={{ fontWeight: 700, margin: 0 }}>Camera / MediaPipe Error</p>
-          <p style={{ fontSize: "12px", opacity: 0.8, margin: 0 }}>{camError}</p>
-          <p style={{ fontSize: "11px", opacity: 0.5, margin: 0 }}>Allow camera access and reload the page.</p>
+          <span style={{ fontSize: "36px" }}>📷</span>
+          <p style={{ fontWeight: 700, fontSize: "16px", margin: 0, color: "#fff" }}>Camera Permission Needed</p>
+          <p style={{ fontSize: "13px", opacity: 0.9, margin: 0, maxWidth: "360px", color: "#fca5a5", lineHeight: 1.5 }}>
+            {camError}
+          </p>
+          <button
+            onClick={() => {
+              setCamError(null);
+              setIssue("Re-initializing camera…");
+              setRetryNonce(n => n + 1);
+            }}
+            style={{
+              marginTop: "8px",
+              padding: "10px 22px",
+              background: "#38bdf8",
+              color: "#0f172a",
+              fontWeight: 700,
+              fontSize: "13px",
+              borderRadius: "10px",
+              border: "none",
+              cursor: "pointer",
+              boxShadow: "0 4px 14px rgba(56, 189, 248, 0.4)",
+              transition: "transform 0.15s ease",
+            }}
+            onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.96)"; }}
+            onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+          >
+            🔄 Try Again / Retry Camera
+          </button>
         </div>
       )}
 

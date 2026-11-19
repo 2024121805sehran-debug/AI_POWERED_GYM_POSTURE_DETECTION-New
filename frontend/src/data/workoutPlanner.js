@@ -219,6 +219,7 @@ export const generateRecommendations = (userProfile, workouts) => {
   const userFitnessLevel = userProfile?.fitnessLevel || "beginner";
 
   const recommendations = [];
+  const reasons = [];
 
   // Base recommendation on fitness goal
   if (fitnessGoal === "strength") {

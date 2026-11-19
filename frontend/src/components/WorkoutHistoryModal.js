@@ -4,7 +4,10 @@ import {
   X,
   Calendar,
   Dumbbell,
+  CheckCircle2,
   Clock,
+  Zap,
+  TrendingUp,
   AlertTriangle,
 } from "lucide-react";
 
